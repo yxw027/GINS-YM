@@ -1,0 +1,18 @@
+﻿  stdafx.cpp
+  GINS_ym.cpp
+  Time_process.cpp
+  GINS_process.cpp
+  GINS_math.cpp
+  Att_tran.cpp
+  GILC_process_lib.cpp
+c:\gins\gins_ym\gins_ym\gins_lib\gilc_process_lib.cpp(15): warning C4101: “imu_raw”: 未引用的局部变量
+c:\gins\gins_ym\gins_ym\gins_lib\gilc_process_lib.cpp(16): warning C4101: “imu_iir”: 未引用的局部变量
+  GINS_ekf.cpp
+  GINS_ins.cpp
+c:\gins\gins_ym\gins_ym\cins_ins\gins_ins.cpp(72): warning C4244: “参数”: 从“double”转换到“int”，可能丢失数据
+c:\gins\gins_ym\gins_ym\cins_ins\gins_ins.cpp(73): warning C4244: “参数”: 从“double”转换到“int”，可能丢失数据
+c:\gins\gins_ym\gins_ym\cins_ins\gins_ins.cpp(138): warning C4244: “参数”: 从“double”转换到“int”，可能丢失数据
+  正在生成代码...
+c:\gins\gins_ym\gins_ym\gins_lib\gilc_process_lib.cpp(40): warning C4700: 使用了未初始化的局部变量“align”
+  GINS_ym.vcxproj -> C:\GINS\GINS_ym\GINS_ym\Debug\GINS_ym.exe
+  GINS_ym.vcxproj -> C:\GINS\GINS_ym\GINS_ym\Debug\GINS_ym.pdb (Full PDB)
