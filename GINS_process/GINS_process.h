@@ -2,6 +2,7 @@
 #define _GINS_PROCESS_H
 #include "GINS_ins.h"
 #include "GINS_ekf.h"
+#include "Att_tran.h"
 #include "GINS_process_lib.h"
 #include <time.h>
 #define NUMX 21
@@ -10,7 +11,14 @@
 #define D2R         (PI/180.0)          /* deg to rad */
 #define R2D         (180.0/PI)          /* rad to deg */
 #define glv_g0     9.7803267714
-#define glv_g      9.80665              /*add by dsf90,2018.6.26*/
+#define glv_g      9.80665    
+#define GNSS_PERIODE_MS 200
+#define RE  6378137.0
+#define SQR(x)      ((x)*(x))
+#define SQ(X)       ((X)*(X))
+#define DEG_0_360(x)       {if ((x) > 360) (x) -= 360;    else if ((x) < 0)	   (x) += 360; }
+#define DEG_NEG180_180(x)  {if ((x) > 180) (x) -= 360;    else if ((x) < -180) (x) += 360; }
+/*add by dsf90,2018.6.26*/
 const static double gpst0[] = { 1980,1, 6,0,0,0 }; /* gps time reference */
 const static double gst0[] = { 1999,8,22,0,0,0 }; /* galileo system time reference */
 const static double bdt0[] = { 2006,1, 1,0,0,0 }; /* beidou time reference */
@@ -252,16 +260,16 @@ public:
 	//void Init(void);
 	//void IMUcone(Process_Data ilcd, double wmm[3], double vmm[3]);
 	//void correctSideslip(void);
-	//void loadPPSSyncInsData(Process_Data &ilcd, GINS_INS &ppsins);
+	void loadPPSSyncInsData(Process_Data &ilcd, GINS_INS &ppsins);
 	//void getDualAntBias(Process_Data &ilcd, double dDifYaw);
 	//void getOdoHeadingBias(Process_Data &ilcd, double dDifHeading);
 	//void KfInitOver();
 	//void updateKfInitStatus(Process_Data &ilcd);
 	//void GnssIntegrity(Process_Data &ilcd, double dheading, double dvn[3]);
 	//void OdoIntegrity(Process_Data &ilcd);
-	int GIPro_P2(Process_Data ilcd);
+	int GINS_P2(Process_Data ilcd);
 	//void setlever(double leverdt[]);
-	//int ZUpdate(Process_Data ilcd);
+	int ZUpdate(Process_Data ilcd);
 };
 
 

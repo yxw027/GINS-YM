@@ -152,6 +152,7 @@
     <ClInclude Include="..\GINS_math\Att_tran.h" />
     <ClInclude Include="..\GINS_math\GINS_math.h" />
     <ClInclude Include="..\GINS_process\GINS_process.h" />
+    <ClInclude Include="..\GINS_process\GINS_test.h" />
     <ClInclude Include="stdafx.h" />
     <ClInclude Include="targetver.h" />
   </ItemGroup>
@@ -162,6 +163,7 @@
     <ClCompile Include="..\GINS_math\Att_tran.cpp" />
     <ClCompile Include="..\GINS_math\GINS_math.cpp" />
     <ClCompile Include="..\GINS_process\GINS_process.cpp" />
+    <ClCompile Include="..\GINS_process\GINS_test.cpp" />
     <ClCompile Include="..\GINS_process\Time_process.cpp" />
     <ClCompile Include="GINS_ym.cpp" />
     <ClCompile Include="stdafx.cpp" />

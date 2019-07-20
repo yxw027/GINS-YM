@@ -1,6 +1,18 @@
 ﻿  stdafx.cpp
   GINS_ym.cpp
   Time_process.cpp
+  GINS_test.cpp
+c:\gins\gins_ym\gins_ym\gins_process\gins_test.cpp(87): warning C4996: 'sprintf': This function or variable may be unsafe. Consider using sprintf_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
+  c:\program files (x86)\windows kits\10\include\10.0.10240.0\ucrt\stdio.h(1769): note: 参见“sprintf”的声明
+c:\gins\gins_ym\gins_ym\gins_process\gins_test.cpp(88): warning C4996: 'sprintf': This function or variable may be unsafe. Consider using sprintf_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
+  c:\program files (x86)\windows kits\10\include\10.0.10240.0\ucrt\stdio.h(1769): note: 参见“sprintf”的声明
+c:\gins\gins_ym\gins_ym\gins_process\gins_test.cpp(125): warning C4996: 'fopen': This function or variable may be unsafe. Consider using fopen_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
+  c:\program files (x86)\windows kits\10\include\10.0.10240.0\ucrt\stdio.h(205): note: 参见“fopen”的声明
+c:\gins\gins_ym\gins_ym\gins_process\gins_test.cpp(318): warning C4800: “int”: 将值强制为布尔值“true”或“false”(性能警告)
+c:\gins\gins_ym\gins_ym\gins_process\gins_test.cpp(337): warning C4996: 'strcpy': This function or variable may be unsafe. Consider using strcpy_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
+  c:\program files (x86)\windows kits\10\include\10.0.10240.0\ucrt\string.h(119): note: 参见“strcpy”的声明
+c:\gins\gins_ym\gins_ym\gins_process\gins_test.cpp(338): warning C4996: 'strtok': This function or variable may be unsafe. Consider using strtok_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
+  c:\program files (x86)\windows kits\10\include\10.0.10240.0\ucrt\string.h(453): note: 参见“strtok”的声明
   GINS_process.cpp
   GINS_math.cpp
   Att_tran.cpp
@@ -14,5 +26,7 @@ c:\gins\gins_ym\gins_ym\cins_ins\gins_ins.cpp(73): warning C4244: “参数”: 
 c:\gins\gins_ym\gins_ym\cins_ins\gins_ins.cpp(138): warning C4244: “参数”: 从“double”转换到“int”，可能丢失数据
   正在生成代码...
 c:\gins\gins_ym\gins_ym\gins_lib\gilc_process_lib.cpp(40): warning C4700: 使用了未初始化的局部变量“align”
-  GINS_ym.vcxproj -> C:\GINS\GINS_ym\GINS_ym\Debug\GINS_ym.exe
-  GINS_ym.vcxproj -> C:\GINS\GINS_ym\GINS_ym\Debug\GINS_ym.pdb (Full PDB)
+c:\gins\gins_ym\gins_ym\gins_process\gins_test.cpp(329): warning C4715: “GINS_string_decode”: 不是所有的控件路径都返回值
+GINS_ym.obj : error LNK2005: _main 已经在 GINS_test.obj 中定义
+GINS_test.obj : error LNK2019: 无法解析的外部符号 _GINS_init，该符号在函数 _main 中被引用
+C:\GINS\GINS_ym\GINS_ym\Debug\GINS_ym.exe : fatal error LNK1120: 1 个无法解析的外部命令
