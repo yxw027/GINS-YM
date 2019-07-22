@@ -166,7 +166,7 @@ void Mat_equal(double *a, int m, int n, double *b)
 	{
 		for (int j = 0; j<n; j++)
 		{
-			*(a + i*n + j) = *(b + i*n + j);
+			*(b + i*n + j) = *(a + i*n + j);
 		}
 	}
 }
@@ -194,4 +194,57 @@ void Mat_unit(double* a, int n)
 	{
 		a[i*n + i] = 1.0;
 	}
+}
+
+double GetAveStd(vector<double> a, int opt)
+{
+	int n = a.size();
+	double avg = 0.0, std = 0.0, rms = 0.0, sum = 0.0;
+
+	if (n == 0)
+		return 99999.9;
+
+	if (opt == 2)
+	{
+		for (int i = 0;i<n;i++) {
+			rms += a[i] * a[i];
+		}
+		rms = sqrt(rms / double(n));
+		return rms;
+	}
+
+	for (int i = 0;i<n;i++) {
+		sum += a[i];
+	}
+	avg = sum / n;
+
+	if (opt == 0)
+		return avg;
+
+	if (opt == 1)
+	{
+		sum = 0.0;
+		for (int i = 0;i<n;i++)
+		{
+			sum += (a[i] - avg)*(a[i] - avg);
+		}
+		std = sqrt(sum / double(n - 1));
+		return std;
+	}
+
+	else
+		return 0.0;
+}
+
+double norm(const double *a, int n)
+{
+	return sqrt(dot(a, a, n));
+}
+
+double dot(const double *a, const double *b, int n)
+{
+	double c = 0.0;
+
+	while (--n >= 0) c += a[n] * b[n];
+	return c;
 }

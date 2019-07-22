@@ -1,32 +1,43 @@
-﻿  stdafx.cpp
-  GINS_ym.cpp
-  Time_process.cpp
-  GINS_test.cpp
-c:\gins\gins_ym\gins_ym\gins_process\gins_test.cpp(87): warning C4996: 'sprintf': This function or variable may be unsafe. Consider using sprintf_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
-  c:\program files (x86)\windows kits\10\include\10.0.10240.0\ucrt\stdio.h(1769): note: 参见“sprintf”的声明
-c:\gins\gins_ym\gins_ym\gins_process\gins_test.cpp(88): warning C4996: 'sprintf': This function or variable may be unsafe. Consider using sprintf_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
-  c:\program files (x86)\windows kits\10\include\10.0.10240.0\ucrt\stdio.h(1769): note: 参见“sprintf”的声明
-c:\gins\gins_ym\gins_ym\gins_process\gins_test.cpp(125): warning C4996: 'fopen': This function or variable may be unsafe. Consider using fopen_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
-  c:\program files (x86)\windows kits\10\include\10.0.10240.0\ucrt\stdio.h(205): note: 参见“fopen”的声明
-c:\gins\gins_ym\gins_ym\gins_process\gins_test.cpp(318): warning C4800: “int”: 将值强制为布尔值“true”或“false”(性能警告)
-c:\gins\gins_ym\gins_ym\gins_process\gins_test.cpp(337): warning C4996: 'strcpy': This function or variable may be unsafe. Consider using strcpy_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
-  c:\program files (x86)\windows kits\10\include\10.0.10240.0\ucrt\string.h(119): note: 参见“strcpy”的声明
-c:\gins\gins_ym\gins_ym\gins_process\gins_test.cpp(338): warning C4996: 'strtok': This function or variable may be unsafe. Consider using strtok_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
-  c:\program files (x86)\windows kits\10\include\10.0.10240.0\ucrt\string.h(453): note: 参见“strtok”的声明
-  GINS_process.cpp
-  GINS_math.cpp
-  Att_tran.cpp
-  GILC_process_lib.cpp
-c:\gins\gins_ym\gins_ym\gins_lib\gilc_process_lib.cpp(15): warning C4101: “imu_raw”: 未引用的局部变量
-c:\gins\gins_ym\gins_ym\gins_lib\gilc_process_lib.cpp(16): warning C4101: “imu_iir”: 未引用的局部变量
-  GINS_ekf.cpp
-  GINS_ins.cpp
-c:\gins\gins_ym\gins_ym\cins_ins\gins_ins.cpp(72): warning C4244: “参数”: 从“double”转换到“int”，可能丢失数据
-c:\gins\gins_ym\gins_ym\cins_ins\gins_ins.cpp(73): warning C4244: “参数”: 从“double”转换到“int”，可能丢失数据
-c:\gins\gins_ym\gins_ym\cins_ins\gins_ins.cpp(138): warning C4244: “参数”: 从“double”转换到“int”，可能丢失数据
-  正在生成代码...
-c:\gins\gins_ym\gins_ym\gins_lib\gilc_process_lib.cpp(40): warning C4700: 使用了未初始化的局部变量“align”
-c:\gins\gins_ym\gins_ym\gins_process\gins_test.cpp(329): warning C4715: “GINS_string_decode”: 不是所有的控件路径都返回值
-GINS_ym.obj : error LNK2005: _main 已经在 GINS_test.obj 中定义
-GINS_test.obj : error LNK2019: 无法解析的外部符号 _GINS_init，该符号在函数 _main 中被引用
-C:\GINS\GINS_ym\GINS_ym\Debug\GINS_ym.exe : fatal error LNK1120: 1 个无法解析的外部命令
+﻿生成启动时间为 2019/7/22 19:08:35。
+     1>项目“E:\GIT\GINS_YM\GINS-YM\GINS_ym\GINS_ym.vcxproj”在节点 2 上(Build 个目标)。
+     1>ClCompile:
+         E:\VS2015\VC\bin\CL.exe /c /I"E:\GIT\GINS_YM\GINS-YM\GINS_math" /I"E:\GIT\GINS_YM\GINS-YM\GINS_lib" /I"E:\GIT\GINS_YM\GINS-YM\GINS_process" /I"E:\GIT\GINS_YM\GINS-YM\CINS_INS" /I"E:\GIT\GINS_YM\GINS-YM\GINS_EKF" /ZI /nologo /W3 /WX- /Od /Oy- /D WIN32 /D _DEBUG /D _CONSOLE /D _UNICODE /D UNICODE /Gm /EHsc /RTC1 /MDd /GS /fp:precise /Zc:wchar_t /Zc:forScope /Zc:inline /Fo"Debug\\" /Fd"Debug\vc140.pdb" /Gd /TP /analyze- /errorReport:prompt ..\GINS_DataSave\GINS_DataSave.cpp
+         GINS_DataSave.cpp
+     1>e:\git\gins_ym\gins-ym\gins_datasave\gins_datasave.cpp(18): warning C4996: 'sprintf': This function or variable may be unsafe. Consider using sprintf_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
+         c:\program files (x86)\windows kits\10\include\10.0.10150.0\ucrt\stdio.h(1769): note: 参见“sprintf”的声明
+     1>e:\git\gins_ym\gins-ym\gins_datasave\gins_datasave.cpp(19): warning C4996: 'fopen': This function or variable may be unsafe. Consider using fopen_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
+         c:\program files (x86)\windows kits\10\include\10.0.10150.0\ucrt\stdio.h(205): note: 参见“fopen”的声明
+     1>e:\git\gins_ym\gins-ym\gins_datasave\gins_datasave.cpp(21): warning C4477: 'printf' : format string '%s' requires an argument of type 'char *', but variadic argument 1 has type 'FILE *'
+     1>e:\git\gins_ym\gins-ym\gins_datasave\gins_datasave.cpp(23): warning C4996: 'sprintf': This function or variable may be unsafe. Consider using sprintf_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
+         c:\program files (x86)\windows kits\10\include\10.0.10150.0\ucrt\stdio.h(1769): note: 参见“sprintf”的声明
+     1>e:\git\gins_ym\gins-ym\gins_datasave\gins_datasave.cpp(24): warning C4996: 'fopen': This function or variable may be unsafe. Consider using fopen_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
+         c:\program files (x86)\windows kits\10\include\10.0.10150.0\ucrt\stdio.h(205): note: 参见“fopen”的声明
+     1>e:\git\gins_ym\gins-ym\gins_datasave\gins_datasave.cpp(26): warning C4477: 'printf' : format string '%s' requires an argument of type 'char *', but variadic argument 1 has type 'FILE *'
+     1>e:\git\gins_ym\gins-ym\gins_datasave\gins_datasave.cpp(28): warning C4996: 'sprintf': This function or variable may be unsafe. Consider using sprintf_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
+         c:\program files (x86)\windows kits\10\include\10.0.10150.0\ucrt\stdio.h(1769): note: 参见“sprintf”的声明
+     1>e:\git\gins_ym\gins-ym\gins_datasave\gins_datasave.cpp(29): warning C4996: 'fopen': This function or variable may be unsafe. Consider using fopen_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
+         c:\program files (x86)\windows kits\10\include\10.0.10150.0\ucrt\stdio.h(205): note: 参见“fopen”的声明
+     1>e:\git\gins_ym\gins-ym\gins_datasave\gins_datasave.cpp(31): warning C4477: 'printf' : format string '%s' requires an argument of type 'char *', but variadic argument 1 has type 'FILE *'
+     1>e:\git\gins_ym\gins-ym\gins_datasave\gins_datasave.cpp(33): warning C4996: 'sprintf': This function or variable may be unsafe. Consider using sprintf_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
+         c:\program files (x86)\windows kits\10\include\10.0.10150.0\ucrt\stdio.h(1769): note: 参见“sprintf”的声明
+     1>e:\git\gins_ym\gins-ym\gins_datasave\gins_datasave.cpp(34): warning C4996: 'fopen': This function or variable may be unsafe. Consider using fopen_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
+         c:\program files (x86)\windows kits\10\include\10.0.10150.0\ucrt\stdio.h(205): note: 参见“fopen”的声明
+     1>e:\git\gins_ym\gins-ym\gins_datasave\gins_datasave.cpp(36): warning C4477: 'printf' : format string '%s' requires an argument of type 'char *', but variadic argument 1 has type 'FILE *'
+       Link:
+         E:\VS2015\VC\bin\link.exe /ERRORREPORT:PROMPT /OUT:"E:\GIT\GINS_YM\GINS-YM\GINS_ym\Debug\GINS_ym.exe" /INCREMENTAL /NOLOGO kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /MANIFEST /MANIFESTUAC:"level='asInvoker' uiAccess='false'" /manifest:embed /Debug /PDB:"E:\GIT\GINS_YM\GINS-YM\GINS_ym\Debug\GINS_ym.pdb" /SUBSYSTEM:CONSOLE /TLBID:1 /DYNAMICBASE /NXCOMPAT /IMPLIB:"E:\GIT\GINS_YM\GINS-YM\GINS_ym\Debug\GINS_ym.lib" /MACHINE:X86 Debug\GINS_ins.obj
+         Debug\GINS_DataSave.obj
+         Debug\GINS_ekf.obj
+         Debug\GINS_process_lib.obj
+         Debug\Att_tran.obj
+         Debug\GINS_math.obj
+         Debug\GINS_process.obj
+         Debug\GINS_test.obj
+         Debug\Time_process.obj
+         Debug\GINS_ym.obj
+         Debug\stdafx.obj
+         GINS_ym.vcxproj -> E:\GIT\GINS_YM\GINS-YM\GINS_ym\Debug\GINS_ym.exe
+     1>已完成生成项目“E:\GIT\GINS_YM\GINS-YM\GINS_ym\GINS_ym.vcxproj”(Build 个目标)的操作。
+
+已成功生成。
+
+已用时间 00:00:02.41

@@ -2,7 +2,13 @@
 #define _ATT_TRAN_H
 #include <math.h>
 #include "GINS_math.h"
-
+#include "GINS_process.h"
+void xyz2enu(const double *pos, double *E);
+void pos2ecef(const double *pos, double *r); //blh2xyz
+void matmul(const char *tr, int n, int k, int m, double alpha,
+	const double *A, const double *B, double beta, double *C);
+void Var_XYZ2BLH(double xyz[3], double Pecef[3], double Penu[3]);
+void ecef2enu(const double *pos, const double *r, double *e); //xyz坐标系向量r转化到enu
 void m2qua_ned(double m[], double q[]);//方向余弦矩阵转四元数ned
 void q2mat_ned(double qua[], double m[]);//四元数转方向余弦矩阵ned
 void m2att_ned(double m[], double a[]);//方向余弦矩阵转欧拉角ned

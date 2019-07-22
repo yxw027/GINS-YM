@@ -289,3 +289,80 @@ void qdelphi(double qpb[], double phi[])
 	qmuln(q0, qpb, qnb);
 	Mat_equal(qnb, 4, 1, qpb);
 }
+
+void ecef2enu(const double *pos, const double *r, double *e)
+{
+	double E[9];
+
+	xyz2enu(pos, E);
+	matmul("NN", 3, 1, 3, 1.0, E, r, 0.0, e);
+}
+
+void xyz2enu(const double *pos, double *E)
+{
+	double sinp = sin(pos[0]), cosp = cos(pos[0]), sinl = sin(pos[1]), cosl = cos(pos[1]);
+
+	E[0] = -sinl;      E[3] = cosl;       E[6] = 0.0;
+	E[1] = -sinp*cosl; E[4] = -sinp*sinl; E[7] = cosp;
+	E[2] = cosp*cosl;  E[5] = cosp*sinl;  E[8] = sinp;
+}
+
+void matmul(const char *tr, int n, int k, int m, double alpha,
+	const double *A, const double *B, double beta, double *C)
+{
+	double d;
+	int i, j, x, f = tr[0] == 'N' ? (tr[1] == 'N' ? 1 : 2) : (tr[1] == 'N' ? 3 : 4);
+
+	for (i = 0;i<n;i++) for (j = 0;j<k;j++) {
+		d = 0.0;
+		switch (f) {
+		case 1: for (x = 0;x<m;x++) d += A[i + x*n] * B[x + j*m]; break;
+		case 2: for (x = 0;x<m;x++) d += A[i + x*n] * B[j + x*k]; break;
+		case 3: for (x = 0;x<m;x++) d += A[x + i*m] * B[x + j*m]; break;
+		case 4: for (x = 0;x<m;x++) d += A[x + i*m] * B[j + x*k]; break;
+		}
+		if (beta == 0.0) C[i + j*n] = alpha*d; else C[i + j*n] = alpha*d + beta*C[i + j*n];
+	}
+}
+
+void Var_XYZ2BLH(double xyz[3], double Pecef[3], double Penu[3])
+{
+	double ENU[9], blh[3];
+#if 0 // POS_XYZ
+	ecef2pos(xyz, blh);
+#endif 
+#if 1 // POS_BLH_deg
+	blh[0] = xyz[0] * PI / 180.0;
+	blh[1] = xyz[1] * PI / 180.0;
+	blh[2] = xyz[2];
+#endif 
+	xyz2enu(blh, ENU);
+
+	//Penu[0]=sqrt(pow(ENU[0],2)*pow(Pecef[0],2)+pow(ENU[1],2)*pow(Pecef[1],2));
+	//Penu[1]=sqrt(pow(ENU[3],2)*pow(Pecef[0],2)+pow(ENU[4],2)*pow(Pecef[1],2)+pow(ENU[5],2)*pow(Pecef[2],2));
+	//Penu[2]=sqrt(pow(ENU[6],2)*pow(Pecef[0],2)+pow(ENU[7],2)*pow(Pecef[1],2)+pow(ENU[8],2)*pow(Pecef[2],2));
+
+	double Decef[3 * 3] = { 0.0 }, temp1[9] = { 0.0 }, temp2[9] = { 0.0 };
+	for (int i = 0;i<3;i++)
+	{
+		Decef[i * 3 + i] = pow(Pecef[i], 2);
+	}
+
+	matmul("TN", 3, 3, 3, 1.0, ENU, Decef, 0.0, temp1);
+	matmul("NN", 3, 3, 3, 1.0, temp1, ENU, 0.0, temp2);
+
+	for (int i = 0;i<3;i++)
+	{
+		Penu[i] = sqrt(temp2[i * 3 + i]);
+	}
+}
+
+void pos2ecef(const double *pos, double *r)
+{
+	double sinp = sin(pos[0]), cosp = cos(pos[0]), sinl = sin(pos[1]), cosl = cos(pos[1]);
+	double e2 = FE_WGS84*(2.0 - FE_WGS84), v = RE_WGS84 / sqrt(1.0 - e2*sinp*sinp);
+
+	r[0] = (v + pos[2])*cosp*cosl;
+	r[1] = (v + pos[2])*cosp*sinl;
+	r[2] = (v*(1.0 - e2) + pos[2])*sinp;
+}

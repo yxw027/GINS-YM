@@ -154,7 +154,7 @@ typedef struct GINS_result_double {
 
 
 //Ëã·¨½Ó¿Ú
-int GINS_init();
+int GINS_init(GINS_cfg_t* cfgdata);
 int GINS_PROCESS_Lib(GINS_raw_t* pstRaw, GINS_result_t* pstOut);
 #ifdef __cplusplus
 }
