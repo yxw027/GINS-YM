@@ -88,7 +88,7 @@
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>C:\GINS\GINS_ym\GINS_ym\GINS_process;C:\GINS\GINS_ym\GINS_ym\GINS_lib;C:\GINS\GINS_ym\GINS_ym\GINS_math;C:\GINS\GINS_ym\GINS_ym\CINS_INS;C:\GINS\GINS_ym\GINS_ym\GINS_EKF</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>E:\GIT\GINS_YM\GINS-YM\GINS_math;E:\GIT\GINS_YM\GINS-YM\GINS_lib;E:\GIT\GINS_YM\GINS-YM\GINS_process;E:\GIT\GINS_YM\GINS-YM\CINS_INS;E:\GIT\GINS_YM\GINS-YM\GINS_EKF;</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -151,6 +151,7 @@
     <ClInclude Include="..\GINS_lib\GINS_process_lib.h" />
     <ClInclude Include="..\GINS_math\Att_tran.h" />
     <ClInclude Include="..\GINS_math\GINS_math.h" />
+    <ClInclude Include="..\GINS_math\malloc_allocator.h" />
     <ClInclude Include="..\GINS_process\GINS_process.h" />
     <ClInclude Include="..\GINS_process\GINS_test.h" />
     <ClInclude Include="stdafx.h" />
@@ -158,8 +159,9 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\CINS_INS\GINS_ins.cpp" />
+    <ClCompile Include="..\GINS_DataSave\GINS_DataSave.cpp" />
     <ClCompile Include="..\GINS_EKF\GINS_ekf.cpp" />
-    <ClCompile Include="..\GINS_lib\GILC_process_lib.cpp" />
+    <ClCompile Include="..\GINS_lib\GINS_process_lib.cpp" />
     <ClCompile Include="..\GINS_math\Att_tran.cpp" />
     <ClCompile Include="..\GINS_math\GINS_math.cpp" />
     <ClCompile Include="..\GINS_process\GINS_process.cpp" />

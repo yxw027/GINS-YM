@@ -45,15 +45,15 @@
     <ClInclude Include="..\GINS_process\GINS_test.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="..\GINS_math\malloc_allocator.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="GINS_ym.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="..\GINS_lib\GILC_process_lib.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="..\GINS_math\GINS_math.cpp">
@@ -75,6 +75,12 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="..\GINS_process\GINS_test.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GINS_DataSave\GINS_DataSave.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GINS_lib\GINS_process_lib.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>

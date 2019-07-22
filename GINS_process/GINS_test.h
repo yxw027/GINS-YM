@@ -22,7 +22,33 @@ int Str2Array(const char *str, const char *sep, double *val);
 
 #define ACC_STD_Y ACC_STD_X
 #define ACC_STD_Z ACC_STD_X
-#define TEST_RAW_FILE_PATH "D://"
-#define OUT_RAW_FILE_PATH "D://"
 
+
+/*--------------------------------IMU AXIS-----------------------------*/
+#define CFG_GYRO_X_SCALE  (1)
+#define CFG_GYRO_Y_SCALE (1)
+#define CFG_GYRO_Z_SCALE  (-1)
+#define CFG_ACC_X_SCALE  (1)
+#define CFG_ACC_Y_SCALE   (1)
+#define CFG_ACC_Z_SCALE  (-1)
+
+#define CFG_GYRO_X_ROW 2
+#define CFG_GYRO_Y_ROW 1
+#define CFG_GYRO_Z_ROW 3
+#define CFG_ACC_X_ROW 5
+#define CFG_ACC_Y_ROW 4
+#define CFG_ACC_Z_ROW 6
+
+#define TEST_RAW_FILE_PATH "E:/P2ÏîÄ¿/CGI410/5.25/610/075429_raw.txt"
+#define OUT_OUT_FILE_PATH "E:/GINS_YM_TEST/"
+#define OUT_FILE_process  "process.txt"
+#define OUT_FILE_raw  "raw.txt"
+#define OUT_FILE_kf  "kf.txt"
+#define OUT_FILE_rtkplot  "rtkplot.txt"
+void File_open(void);
+void SaveRst(GINS_Process *gipro, Process_Data *ilcd);
+void printf_posLC(FILE *fp, GINS_INS *ins, Process_Data *ilcd);
+void printf_kf(FILE *fp, GINS_KF& kf, double gpstimetarget);
+void printf_prosess(FILE *fp, GINS_Process *gipro, Process_Data *ilcd);
+void printf_posAnt(FILE *fp, GINS_INS *ins, Process_Data *ilcd);
 #endif

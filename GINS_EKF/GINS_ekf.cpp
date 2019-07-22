@@ -3,8 +3,8 @@ void GINS_KF::kfinit()
 {
 	memset(xk, 0, sizeof(double)*ROW * 1);
 	memset(xkpre, 0, sizeof(double)*ROW * 1);
-	memset(dpos, 0, sizeof(double) * 3 * 1);
-	memset(denu, 0, sizeof(double) * 3 * 1);
+	//memset(dpos, 0, sizeof(double) * 3 * 1);
+	//memset(denu, 0, sizeof(double) * 3 * 1);
 	memset(Phi, 0, sizeof(double)*ROW*ROW);
 	memset(Hk, 0, sizeof(double)*COL*ROW);
 	memset(Rk, 0, sizeof(double)*COL * 1);

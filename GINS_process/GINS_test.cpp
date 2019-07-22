@@ -76,7 +76,7 @@ typedef struct imu_data {
 int main()
 {
 	int iRet = 0;
-	GINS_raw_t stRaw = { 0 }, stRawTmp = { 0 };
+	GINS_raw_t stRaw_test = { 0 }, stRawTmp_test = { 0 };
 	GINS_result_t stOut = { 0 };
 	GINS_cfg_t stCfg = { 0 };
 	FILE *fd_data = NULL;
@@ -84,7 +84,6 @@ int main()
 	char buff[1024];
 	char outpath[1024] = { 0 };
 	char tmppath[1024] = { 0 };
-	sprintf(outpath, "%s", OUT_RAW_FILE_PATH);
 	sprintf(tmppath, "%s", TEST_RAW_FILE_PATH);
 	stCfg.gyro_std[0] = GYRO_STD_X;
 	stCfg.gyro_std[1] = GYRO_STD_Y;
@@ -119,7 +118,8 @@ int main()
 	stCfg.fIns2BodyAngleErr[0] = CFG_fIns2BodyAngleErr_X;
 	stCfg.fIns2BodyAngleErr[1] = CFG_fIns2BodyAngleErr_Y;
 	stCfg.fIns2BodyAngleErr[2] = CFG_fIns2BodyAngleErr_Z;
-	GINS_init();
+	GINS_YM GINS_test_ym;
+	GINS_test_ym.GINS_Init(&stCfg);
 
 
 	fd_data = fopen(tmppath, "rt");
@@ -150,7 +150,7 @@ int main()
 			printf("file read error: %s\n", buff);
 			continue;
 		}
-		int decode_flag = GINS_string_decode(buff, &stRawTmp);
+		int decode_flag = GINS_string_decode(buff, &stRawTmp_test);
 		if (decode_flag == -1)
 		{
 			printf("GILC_Load param err!\r\n");
@@ -163,32 +163,32 @@ int main()
 		}
 
 
-		if (stRawTmp.bGPSavail)
+		if (stRawTmp_test.bGPSavail)
 		{
-			stRaw.bGPSavail = stRawTmp.bGPSavail;
-			stRaw.gnssdata = stRawTmp.gnssdata;
-			stRaw.gnss_delay_ms = stRawTmp.gnss_delay_ms;
+			stRaw_test.bGPSavail = stRawTmp_test.bGPSavail;
+			stRaw_test.gnssdata = stRawTmp_test.gnssdata;
+			stRaw_test.gnss_delay_ms = stRawTmp_test.gnss_delay_ms;
 		}
 
-		if (stRawTmp.bMEMSavail)
+		if (stRawTmp_test.bMEMSavail)
 		{
-			stRaw.bMEMSavail = stRawTmp.bMEMSavail;
-			stRaw.bPPSavail = stRawTmp.bPPSavail;
-			stRaw.imutimetarget = stRawTmp.imutimetarget;
-			stRaw.memsdate = stRawTmp.memsdate;
+			stRaw_test.bMEMSavail = stRawTmp_test.bMEMSavail;
+			stRaw_test.bPPSavail = stRawTmp_test.bPPSavail;
+			stRaw_test.imutimetarget = stRawTmp_test.imutimetarget;
+			stRaw_test.memsdate = stRawTmp_test.memsdate;
 		}
 
 		static double start_time = 0.0;
-		if ((stRaw.gnssdata.second > start_time + 1 * 60 && stRaw.gnssdata.second < start_time + 2 * 60))
+		if ((stRaw_test.gnssdata.second > start_time + 1 * 60 && stRaw_test.gnssdata.second < start_time + 2 * 60))
 		{
 			//stRaw.bGPSavail = false;
 			//stRaw.bODOavail = false;
 		}
-
+		//printf("data:%f,%d\n", stRaw_test.gnssdata.second, stRaw_test.bGPSavail);
 		memset(&stOut, 0, sizeof(stOut));
-		int GINS_flag = GINS_PROCESS_Lib(&stRaw, &stOut);
-		return 0;
+		int GINS_flag = GINS_test_ym.GINS_PROCESS_Lib(&stRaw_test, &stOut);
 	}
+	return 0;
 }
 
 int GINS_string_decode(char *buff,GINS_raw_t *pRaw)
@@ -296,11 +296,11 @@ int GINS_string_decode(char *buff,GINS_raw_t *pRaw)
 			else
 			{
 				printf("Unknow gnss data num %d\r\n", num);
-				//return GILC_RET__ERR_STRN_PARAM;
+				return -2;
 			}
 
 			pRaw->bGPSavail = true;
-			//return GILC_RET__LOAD_STRN_GNSS;
+			return 1;
 		}
 		else if (strstr(buff, "IMU,"))
 		{
@@ -320,10 +320,9 @@ int GINS_string_decode(char *buff,GINS_raw_t *pRaw)
 			else
 			{
 				printf("Unknow imu data num %d\r\n", num);
-				//return GILC_RET__ERR_STRN_PARAM;
+				return -2;
 			}
 			pRaw->bMEMSavail = true;
-			//return GILC_RET__LOAD_STRN_IMU;
 			return 1;
 		}
 }

@@ -4,9 +4,16 @@
 #include "GINS_ekf.h"
 #include "Att_tran.h"
 #include "GINS_process_lib.h"
+#include <stdlib.h>
 #include <time.h>
+#include <string>
+#include <vector>
+#include <algorithm> 
+#include <stdarg.h>
 #define NUMX 21
 #define NUMV 13
+#define RE_WGS84    6378137.0           // earth semimajor axis (WGS84) (m)
+#define FE_WGS84    (1.0/298.257223563) // earth flattening (WGS84)
 #define PI		    3.14159265358979
 #define D2R         (PI/180.0)          /* deg to rad */
 #define R2D         (180.0/PI)          /* rad to deg */
@@ -18,10 +25,14 @@
 #define SQ(X)       ((X)*(X))
 #define DEG_0_360(x)       {if ((x) > 360) (x) -= 360;    else if ((x) < 0)	   (x) += 360; }
 #define DEG_NEG180_180(x)  {if ((x) > 180) (x) -= 360;    else if ((x) < -180) (x) += 360; }
-/*add by dsf90,2018.6.26*/
+//template<typename T>
+//using malloc_allocator = class std::allocator<T>;
+using namespace std;
 const static double gpst0[] = { 1980,1, 6,0,0,0 }; /* gps time reference */
 const static double gst0[] = { 1999,8,22,0,0,0 }; /* galileo system time reference */
 const static double bdt0[] = { 2006,1, 1,0,0,0 }; /* beidou time reference */
+
+
 
 typedef struct {        /* time struct */
 	time_t time;        /* time (s) expressed by standard time_t 从1970.01.01 0秒到现在的秒数 long int*/
@@ -272,7 +283,16 @@ public:
 	int ZUpdate(Process_Data ilcd);
 };
 
-
+struct gpos
+{
+	double time;
+	double lat, lon, hig;
+	double ve, vn, vu;
+	double yaw;
+	int state;
+};
+typedef struct gpos gpos_t;
+void equalgpos(gpos_t* GP, Process_Data* lcdata);
 
 class GINS_Align
 {
@@ -280,18 +300,24 @@ public:
 	bool bFinshAlign;
 	bool bStatic;
 	double PRY_Install[3]; /*安装误差初始值*/
-	double Att[3], Vn[3], Pos[3];
+	double Att[3], Vn[3], Pos[3];//INS推算初始值
 	double VnL[3], PosL[3]; /*天线位置速度、位置*/
 	int gnssstate;
 	double Pgposvn[36];
 	unsigned int ngnss, Ngnss;
 	int nspeed;
+	vector <gpos_t> heading_v;
+	vector<double> yaw_gnss;
 
-	//KinAlign& operator=(const KinAlign& kinalign);
-	//void Init(void);
-	//bool KinmateAlign(Process_Data& ilcd, GINS_Process& gipro);
+	bool CalAtt2(Process_Data& ilcd);
+	bool CalAtt(Process_Data& ilcd, int opt = 0);              //根据位置计算航向
+	bool KinmateAlign(Process_Data& ilcd, GINS_Process& gipro);
 };
-/*GINS test by ym*/
+
+
+
+
+
 class GINS_YM
 {
 public:
@@ -301,7 +327,7 @@ public:
 	GINS_Process GI_pro;//gins解算数据
 	GINS_Align GI_align;
 	Process_Data GI_pd, pre_GI_pd;//gins中间数据
-	//DebugFile debugfile;
+								  //DebugFile debugfile;
 	int raw_cnt;
 	int dbg_cnt;
 	int rst_cnt;
@@ -317,20 +343,29 @@ public:
 
 	//GilcProcess(void) {};
 
-	//int GILC_Init(gilc_cfg_t* cfgdata);
+	int GINS_Init(GINS_cfg_t* cfgdata);
 	//void GILC_Update_Status(GINS_result_t* pstOut, int iGilcStatus, int iGnssStatus, bool bDualAntAvail);
 	void GINS_GnssRaw_Correct(GINS_raw_t *pRaw);
 	void GINS_ImuAxis_Correct(GINS_raw_t *pRaw);
 	void GINS_ekf_data_ready(GINS_cfg_double *GI_cfg);
-	int GINS_Rawdata_Quality(GINS_raw_t *pRaw, Process_Data *pIlcData);
+	int GINS_Rawdata_Quality(GINS_raw_t *pRaw);
 	int GINS_data_correct(GINS_raw_t *pRaw);
 	int GINS_PROCESS_Lib(GINS_raw_t* pstRaw, GINS_result_t* pstOut);
 };
 
+class test
+{
+public :
+	double data[3];
+	int flag;
+	void init(void);
+};
+
+
 extern double timediff(gtime_t t1, gtime_t t2);
 extern gtime_t timeadd(gtime_t t, double sec);
 //extern int str2time(const char *s, int i, int n, gtime_t *t);
-extern gtime_t gpst2utc(gtime_t t);
+extern  gtime_t gpst2utc(gtime_t t);
 extern gtime_t epoch2time(const double *ep);
 extern void time2epoch(gtime_t t, double *ep);
 extern gtime_t gpst2time(int week, double sec);

@@ -56,68 +56,21 @@ void GINS_INS::Init(double Att[], double Vn[], double Pos[], double EB[], double
 void GINS_INS::Update(double wm[], double vm[], double dtime)
 {
 	double t2 = dtime*0.5;
-	//double ebdt[3],dbdt[3],kwm[3],kvm[3];
-	//Mmuln(eb,3,1,dtime,ebdt); 
-	//Mmuln(db,3,1,dtime,dbdt); 
-	//Mmulnm(Kg,wm,3,3,1,kwm);
-	//Mmulnm(Ka,vm,3,3,1,kvm);
-	//Mminn(kwm,ebdt,wm,3,1); 
-	//Mminn(kvm,dbdt,vm,3,1); 
-
 	/*dsf90:wib = wib - eb; wib, b系角速率*/
 	/*dsf90:fb	= fb - db; fb, b系加速度*/
-	Mat_min(wib, eb, wib, 3, 1);
-	Mat_min(fb, db, fb,3, 1);
+	Mat_min(wib, eb, wib, 3, 1);//陀螺去零偏
+	Mat_min(fb, db, fb,3, 1);//加计去零偏
 
-	Mat_mul(wib, wm, 3, 1, dtime, wib);
-	Mat_mul(fb, vm, 3, 1, dtime,  fb);
+	Mat_mulb(wib, 3, 1, dtime, wm);
+	Mat_mulb(fb, 3, 1, dtime, vm);
 
-#if (!GILC_SIMPLIFY_USED)	
-	/*dsf90:速度、位置预测更新*/
-	/*dsf90:vn01 = vn + 0.5*dt*an ; vn01 本时间段内的中点速度*/
-	double ant2[3], vn01[3], vn01t2[3], Mvt[3], pos01[3];
-	Mmuln(an, 3, 1, t2, ant2);
-	Maddn(vn, ant2, vn01, 3, 1);
-	/*dsf90:pos01 = pos + 0.5*dt*Mpv X vn01; pos01 本时间段内的中点位置*/
-	Mmuln(vn01, 3, 1, t2, vn01t2);
-	Mmulnm(Mpv, vn01t2, 3, 3, 1, Mvt);
-	Maddn(pos, Mvt, pos01, 3, 1);
-
-	/*dsf90:使用位置、速度更新值，更新地球模型*/
-	eth.UpdatePV(pos01, vn01);
-#else	/*dsf90:简化版,差异小于1mm*/
 	eth.UpdatePV(pos, vn);
-#endif
-
 	double Cnbt[3 * 3], Ctwie[3 * 1];
 	Mat_equal(Cnb, 3, 3, Cnbt);
 	Mat_tran(Cnbt, 3, 3, Cnbt);
 
-#if (!GILC_SIMPLIFY_USED)	
-	/*dsf90:web = wib - Cbn X wnie；*/
-	Mmulnm(Cnbt, eth.wnie, 3, 3, 1, Ctwie);
-	Mminn(wib, Ctwie, web, 3, 1);
-#else
-	/*dsf90:wnb = wib - Cbn X wnin；*/
 	Mat_mul(Cnbt, eth.wnin, 3, 3, 1, Ctwie);
 	Mat_min(wib, Ctwie, wnb, 3, 1);
-#endif
-
-#if (!GILC_SIMPLIFY_USED)	
-	/*dsf90:Cnb_new = Cwm2m = Cnb X rv2m(0.5*wib*dt);时间段中点角度增量*/
-	/*dsf90:win_new = Ctwnin = Cbn_new X wnin;*/
-	/*dsf90:wnb = wib - Cbn_new X wnin;疑问？wnb未使用*/
-	//double wnb[3];
-	double wm2m[3 * 3], wm2[3 * 1], Cwm2m[3 * 3], Cwm2mt[3 * 3], Ctwnin[3 * 1];
-	Mmuln(wm, 3, 1, 0.5, wm2);
-	rv2m(wm2, wm2m);
-	Mmulnm(Cnb, wm2m, 3, 3, 3, Cwm2m);
-	Mtn(Cwm2m, 3, 3, Cwm2mt);
-	Mmulnm(Cwm2mt, eth.wnin, 3, 3, 1, Ctwnin);
-	Mminn(wib, Ctwnin, wnb, 3, 1);
-#else /*dsf90:简化*/
-
-#endif
 
 	/*dsf90:速度更新*/
 	/*dsf90:fn  = Cnb X fb; fn, n系实际加速度*/
@@ -126,16 +79,9 @@ void GINS_INS::Update(double wm[], double vm[], double dtime)
 	/*dsf90:教材版 vn1 = vn + (Cnb X fb + gcc)*dt*/
 	Mat_mul(Cnb, fb, 3, 3, 1, fn);                /*dsf90: 等效 qmulv(qnb,fb,fn);*/
 	double ant[3], vn1[3];
-#if (!GILC_SIMPLIFY_USED)	
-	double rtvfn[3];
-	double wnint[3];
-	Mmuln(eth.wnin, 3, 1, -t2, wnint);
-	rotv(wnint, fn, rtvfn);
-	Maddn(rtvfn, eth.gcc, an, 3, 1);
-#else /*dsf90:简化版，教材版，差异小于1mm*/
 	Mat_add(fn, eth.gcc, an, 3, 1);
-#endif	
-	Mat_mul(an, ant, 3, 1, dtime,an);
+
+	Mat_mulb(an, 3, 1, dtime,ant);
 	Mat_add(vn, ant, vn1, 3, 1);
 
 	/*dsf90:位置更新*/
@@ -161,28 +107,6 @@ void GINS_INS::Update(double wm[], double vm[], double dtime)
 #if 1
 	Mat_mulb(eth.wnin, 3, 1, dtime, wnindt);
 	qupdt2(qnb, wm, wnindt, qnb1);
-#elif 0 /*dsf90:等效展开，误差小于1mm*/
-	Mmuln(eth.wnin, 3, 1, -dtime, wnindt);
-	qupdt(qnb, wm, qnb1);
-	qdelphi(qnb1, wnindt, qnb1);
-#elif 0 /*dsf90:等效展开，误差小于1mm*/
-	Mmuln(eth.wnin, 3, 1, -dtime, wnindt);
-	memcpy(qnb1, qnb, sizeof(qnb1));
-	rv2q(wm, q);
-	qmul(qnb1, q);
-	rv2q(wnindt, q);
-	qmul(q, qnb1);
-	memcpy(qnb1, q, sizeof(qnb1));
-#else	/*dsf90:简化版，教材版，角增量加减后更新，差异约1mm*/
-	/*dsf90:wnb = wib - Cbn X wnin;*/
-	double wnbdt[3];
-	double Cbn[3 * 3], Wbin[3];
-	double wnb[3];
-	Mtn(Cnb, 3, 3, Cbn);
-	Mmulnm(Cbn, eth.wnin, 3, 3, 1, Wbin);
-	Mminn(wib, Wbin, wnb, 3, 1);
-	Mmuln(wnb, 3, 1, dtime, wnbdt);
-	qupdt(qnb, wnbdt, qnb1);
 #endif
 	Mat_equal(qnb1, 4, 1, qnb);
 
