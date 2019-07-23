@@ -366,3 +366,27 @@ void pos2ecef(const double *pos, double *r)
 	r[1] = (v + pos[2])*cosp*sinl;
 	r[2] = (v*(1.0 - e2) + pos[2])*sinp;
 }
+
+void diffpos(double blhpre[3], double blhcur[3], double denu[3])
+{
+	double rr0[3] = { 0.0 }, rr1[3] = { 0.0 }, drr[3] = { 0.0 };
+	pos2ecef(blhpre, rr0);
+	pos2ecef(blhcur, rr1);
+	Mat_min(rr1, rr0, drr, 3, 1);
+	ecef2enu(blhpre, drr, denu);
+}
+
+void difpos_b(double pospre[3], double poscur[3], double att[3], double dpos_b[3])
+{
+	double rr0[3] = { 0.0 }, rr1[3] = { 0.0 }, drr[3] = { 0.0 }, denu[3] = { 0 };
+	pos2ecef(pospre, rr0);
+	pos2ecef(poscur, rr1);
+	Mat_min(rr1, rr0, drr, 3, 1);
+	ecef2enu(pospre, drr, denu);
+
+	double Cnb[9] = { 0 }, Cbn[9];
+	a2mat(att, Cnb);
+	Mat_tran(Cnb, 3, 3, Cbn);
+	Mat_mul(Cbn, denu, 3, 3, 1, dpos_b);
+
+}

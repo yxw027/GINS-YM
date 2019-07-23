@@ -84,26 +84,6 @@ void GINS_YM::GINS_GnssRaw_Correct(GINS_raw_t *pRaw)
 			break;
 		}
 	}
-
-	if (1)
-	{
-		double vel_ecef[3] = { 0.0 }, pos[3] = { 0.0 };
-		double vel_enu[3] = { 0.0 };
-		vel_ecef[0] = pRaw->gnssdata.vx_ecef;
-		vel_ecef[1] = pRaw->gnssdata.vy_ecef;
-		vel_ecef[2] = pRaw->gnssdata.vz_ecef;
-		pos[0] = pRaw->gnssdata.lat*D2R;
-		pos[1] = pRaw->gnssdata.lon*D2R;
-		pos[2] = pRaw->gnssdata.alt;
-		ecef2enu(pos, vel_ecef, vel_enu);
-
-		pRaw->gnssdata.speed = sqrt(pow(vel_enu[0], 2) + pow(vel_enu[1], 2));
-		pRaw->gnssdata.heading1 = atan2(vel_enu[0], vel_enu[1])*R2D;
-
-		if (pRaw->gnssdata.heading1 <0)
-			pRaw->gnssdata.heading1 += 360;
-	}
-
 }
 
 
@@ -214,7 +194,7 @@ int  GINS_YM::GINS_Rawdata_Quality(GINS_raw_t *pRaw)
 
 #ifndef SYNC_PPS_UNUSED
 		/*dsf90:时间同步检验*/
-		if (!GI_pd.week || dErrTime >0.150)
+		if (!GI_pd.week || dErrTime >0.50)
 		{
 			printf("libgilc --- raw time error: week %d, sec %f, imu_sec %f, diff time %f s\r\n",
 				GI_pd.week, GI_pd.gpstimetarge,
@@ -387,13 +367,13 @@ int  GINS_YM::GINS_Rawdata_Quality(GINS_raw_t *pRaw)
 		GI_pd.GA_RK[2] = SQ(heading2_std*D2R);
 
 		/*固定解，方差大小检查*/
-		if (GI_pd.stat == 4)
-		{/*定位精度不达标，修改定位状态为浮动*/
-			if (pos_std_enu[0] > 0.1 || pos_std_enu[1] > 0.1 || pos_std_enu[2] > 0.2)
-			{
-				GI_pd.stat = 5;
-			}
-		}
+		//if (GI_pd.stat == 4)
+		//{/*定位精度不达标，修改定位状态为浮动*/
+		//	if (pos_std_enu[0] > 0.1 || pos_std_enu[1] > 0.1 || pos_std_enu[2] > 0.2)
+		//	{
+		//		GI_pd.stat = 5;
+		//	}
+		//}
 		if (GI_pd.stat)
 			GI_pd.bGPSavail = true;
 	}
@@ -477,7 +457,7 @@ int GINS_YM::GINS_Init(GINS_cfg_t* cfgdata)
 	memset(&GI_pro, 0, sizeof(GI_pro));
 	stRaw = { 0 };
 	stRaw_tmp = { 0 };
-	GI_pro = { 0 };
+	//GI_pro = { 0 };
 	for (int i = 0;i < 3;i++)
 	{
 		GI_cfg.accle_std[i] = cfgdata->accle_std[i];
@@ -495,15 +475,12 @@ int GINS_YM::GINS_Init(GINS_cfg_t* cfgdata)
 	GI_pro.ins.att[3] = { 0 };
 	GI_pro.ins.pos[3] = { 0 };
 	GI_pro.ins.vn[3] = { 0 };
-	//gipro.Init();
-	//gipro.setlever(s_cfgdata.arm_ant);
-	//kinalign.Init();
-	//iir_filter.Init();
-	//ilcd.Init();
-	//pre_ilcd.Init();
 
+	GI_pro.kf_init = false;
+	GI_pro.kf.ROW = 21;
+	GI_pro.kf.COL = 15;
 
-
+	GI_align.init();
 	//sprintf(cGilcInitMsg, "GILC Init ver: %s %s\r\n", GILC_SOFT_VER, GILC_SOFT_DATE);
 	//sprintf(cGilcInitMsg + strlen(cGilcInitMsg), "GILC NUMX %d, NUMV %d\r\n", NUMX, NUMV);
 
@@ -637,16 +614,11 @@ int GINS_YM::GINS_Init(GINS_cfg_t* cfgdata)
 
 int GINS_Process::GINS_P2(Process_Data ilcd)
 {
-	double *wmcur, *vmcur, wm[3], vm[3];
+
 	int ret = 0;
 	//滤波器初始化
-	if (!bAlign)
+	if (!kf_init)
 	{
-		//for (int i = 0; i<9; i++)
-		//{
-		//	kf.davp[i] = para.davp[i];
-		//}
-
 		//for (int i = 0; i<3; i++)
 		//{
 		//	kf.GB[i] = para.GB[i];
@@ -656,43 +628,29 @@ int GINS_Process::GINS_P2(Process_Data ilcd)
 		//	kf.GS[i] = para.GS[i];
 		//	kf.AS[i] = para.AS[i];
 		//}
-		kf.kfinit();
-		//vector<double, malloc_allocator<double> >temppxk;
-		//for (int i = 0; i<kf.ROW; i++)
+		//vector<double>temppxk;
+		//for (int i = 0;i<kf.ROW;i++)
 		//{
 		//	temppxk.push_back(sqrt(kf.Pxk[i*kf.ROW + i]));
 		//}
+		kf.GINS_KF_malloc(NUMX,NUMV,&kf_tmp);//分配内存空间
+		kf.kfinit();
+
 		//prePxk.push_back(temppxk);
-		bAlign = true;
+
+		kf_init = true;
 	}
 
 	if (ilcd.bMEMSavail)
 	{
-		wmcur = ilcd.gyo; vmcur = ilcd.acc;
-
-		/*dsf90:wm = 0.5*(wmpre + wmcur)*dt; wm, 角度变化增量 rad；疑问：dt使用前需先更新！*/
-		/*dsf90:vm = 0.5*(vmpre + vmcur)*dt; vm, 速度变化增量 m/s*/
-		//均值
-		Mat_add(wmpre, wmcur, wm, 3, 1);
-		Mat_add(vmpre, vmcur, vm, 3, 1);
-		Mat_equal(wmcur, 3, 1, wmpre);
-		Mat_equal(vmcur, 3, 1, vmpre);
-		Mat_mulb(wm, 3, 1, 0.5, wm);
-		Mat_mulb(vm, 3, 1, 0.5, vm);
-		Mat_equal(wm, 3, 1, ins.wib);
-		Mat_equal(vm, 3, 1, ins.fb);
-		Mat_mulb(wm, 3, 1, dt,wm);
-		Mat_mulb(vm, 3, 1, dt,vm);
-		//需要准确的时间戳
-		dt = ilcd.imutimetarge - tpre;
+		dt = ilcd.imutimetarge - tpre;		//需要准确的时间戳
 		dt_total += dt;
 		tpre = ilcd.imutimetarge;
-
-		ins.Update(wm, vm, dt);
+		ins.INS_process(ilcd,dt);
 		//ins.Lever(); //臂杆和时间延迟补偿
-		//kf.upPhi(ins, dt);
-		//kf.TUpdate(dt);  //考虑GK
-		//inspre = ins;
+		kf.upPhi(ins, dt);
+		kf.TUpdate(dt);  
+		inspre = ins;
 	}
 	//判断是否有PPS
 	if (ilcd.bPPSavail)
@@ -725,6 +683,21 @@ void equalgpos(gpos_t* GP, Process_Data* lcdata)
 	GP->yaw = lcdata->heading2*D2R;
 }
 
+void  GINS_Align::init(void)
+{
+	for (int i = 0;i < 3;i++)
+	{
+		PRY_Install[i] = 0;
+		Att[i] = 0;
+		Vn[i] = 0;
+		Pos[i] = 0;
+		VnL[i] = 0;
+		PosL[i] =0;
+	}
+
+}
+
+
 bool GINS_Align::KinmateAlign(Process_Data& ilcd, GINS_Process& gipro)
 {
 	Ngnss = 10;
@@ -747,12 +720,11 @@ bool GINS_Align::KinmateAlign(Process_Data& ilcd, GINS_Process& gipro)
 			{
 				heading_v.erase(heading_v.begin());
 				heading_v.push_back(gnsstemp);
-				//bFinshAlign=CalAtt(ilcd, gipro.bDualAntCalibrateOk);/*dsf90:固定解初始化*/
-				bFinshAlign = CalAtt(ilcd, 0);/*dsf90:固定解初始化*/
+				bFinshAlign = CalAtt(ilcd, 0);
 				return bFinshAlign;
 			}
 		}
-#if 1
+#if 0
 		else
 		{
 			if (ilcd.bGPSavail)
@@ -858,6 +830,7 @@ bool GINS_Align::CalAtt(Process_Data& ilcd, int opt)
 	{
 		Att[2] = (heading_v.end() - 1)->yaw;
 		double db[3];
+		Mat_equal(ilcd.acc, 3, 1, db);
 		double pitch = atan2(db[1], sqrt(pow(db[0], 2) + pow(db[2], 2)));
 		double roll = atan2(-db[0], db[2]);
 		Att[0] = pitch;         /*dsf90,风险:初始姿态设置为起步前的姿态*/
@@ -900,4 +873,34 @@ bool GINS_Align::CalAtt2(Process_Data& ilcd)
 	Pos[2] = ilcd.pos[2];
 	gnssstate = ilcd.stat;
 	return true;
+}
+
+void GINS_Process::loadPPSSyncInsData(Process_Data &ilcd, GINS_INS &ppsins)
+{
+	bPPSSync = false;
+	/*PPS SYNC*/
+	if (ilcd.bGPSavail)
+	{
+		//int imu_period_ms = InitParam.iImuPeriod_ms>(int)InitParam.dPpsTimeErrMax_ms ? InitParam.iImuPeriod_ms : (int)InitParam.dPpsTimeErrMax_ms;
+		int imu_period_ms = 20;
+		ilcd.bGPSavail = false;
+		if (fabs(inspre_forPPS.imutimetarge - ilcd.gpstimetarge) * 1000 < imu_period_ms)
+		{	/*dsf90:匹配上次PPS位置*/
+			ppsins = inspre_forPPS;
+			bPPSSync = true;
+			ilcd.bGPSavail = true;
+		}
+		else if (fabs(inspre.imutimetarge - ilcd.gpstimetarge) * 1000 < imu_period_ms)
+		{	/*dsf90:匹配邻近INS位置*/
+			ppsins = inspre;
+			bPPSSync = true;
+			ilcd.bGPSavail = true;
+		}
+
+		if (!ilcd.bGPSavail)  //GNSS 
+		{
+			printf("%8.6f: Update GNSS flag, get pps time %.6f, gps time %.6f, new flag 0\r\n", ilcd.imutimetarge, ppsins.imutimetarge, ilcd.gpstimetarge);
+		}
+	}
+
 }

@@ -4,6 +4,7 @@
 #include "GINS_ekf.h"
 #include "Att_tran.h"
 #include "GINS_process_lib.h"
+#include "IMU_Filter.h"
 #include <stdlib.h>
 #include <time.h>
 #include <string>
@@ -25,6 +26,30 @@
 #define SQ(X)       ((X)*(X))
 #define DEG_0_360(x)       {if ((x) > 360) (x) -= 360;    else if ((x) < 0)	   (x) += 360; }
 #define DEG_NEG180_180(x)  {if ((x) > 180) (x) -= 360;    else if ((x) < -180) (x) += 360; }
+
+
+#define UPDATE_Z_ATT_X    0x0001
+#define UPDATE_Z_ATT_Y    0x0002
+#define UPDATE_Z_ATT_Z    0x0004
+#define UPDATE_Z_ATT_XYZ  0x0007
+
+#define UPDATE_Z_VER_X    0x0008
+#define UPDATE_Z_VER_Y    0x0010
+#define UPDATE_Z_VER_Z    0x0020
+#define UPDATE_Z_VER_XYZ  0x0038
+
+#define UPDATE_Z_POS_X    0x0040
+#define UPDATE_Z_POS_Y    0x0080
+#define UPDATE_Z_POS_Z    0x0100
+#define UPDATE_Z_POS_XYZ  0x01C0
+
+#define UPDATE_Z_CONS_VER_X   0x0200
+#define UPDATE_Z_CONS_VER_Y   0x0400
+#define UPDATE_Z_CONS_VER_Z   0x0800
+#define UPDATE_Z_CONS_VER_XZ  0x0A00
+#define UPDATE_Z_CONS_VER_XYZ 0x0D00
+
+
 //template<typename T>
 //using malloc_allocator = class std::allocator<T>;
 using namespace std;
@@ -85,88 +110,7 @@ public:
 	//void UpdateP(double pos[]);
 	void UpdatePV(double pos[], double vn[]);
 };
-class GINS_INS
-{
-public:
-	CEarth eth;
-	double qnb[4];
-	double Cnb[3 * 3];
-	/*dsf90 add,2018.4.25,安装误差相关变量, m系: mobile 坐标系*/
-	double PRY_Install[3];
-	double qmb[4];
-	double Cmb[3 * 3];
-	double Cbm[3 * 3];
-	double vm_car[3];
-	double att_car[3];
-	double Cnm[3 * 3];
-	double tDelay;
-	/*end add*/
-	double att[3], vn[3], pos[3], vnL[3], posL[3], vnL2[3], posL2[3];
-	double eb[3], db[3], lever[3], lever2[3], Kg[3 * 3], Ka[3 * 3];
-	double fn[3], an[3], web[3], wnb[3], wib[3], fb[3], ab[3], am[3], wim[3], fm[3];
 
-	double Mpv[3 * 3], Mpvvn[3], MpvCnb[9], CW[9];
-	double wm_1[3], vm_1[3];
-
-	double imutimetarge;
-	double dual_yaw;  /*双天线航向*/
-	double dual_yaw_h;/*双天线航向观测量*/
-
-					  //INS(void) { imutimetarge = 0; };
-	void INS(double Att[], double Vn[], double Pos[], double EB[], double DB[], double Lever[]);
-	//CSINS& operator=(const CSINS& ins);
-	void Init(double Att[], double Vn[], double Pos[], double EB[], double DB[], double Lever[], double Lever2[], double PRY_install[]);
-	void Update(double wm[], double vm[], double dtime);
-	//void Lever();
-	void Lever(double pos1[], double vn1[], double pos2[], double vn2[], double lever[]);
-	//void SetOutLever(double Lever2[]);
-};
-
-
-
-class GINS_KF
-{
-public:
-	int ROW, COL, OPT;
-	double* xk;//状态量
-	double* Pxk;//状态量协方差
-	double* Phi;//状态转移矩阵
-	double* Qk;//状态噪声矩阵
-	double* Gk;
-	double* Hk;//观测矩阵
-	double* Rk;//观测噪声矩阵
-	double* xkpre;
-	double* dpos;
-	double* denu;
-	int  xflag;
-	int  zflag;
-	bool bGnssUpdata;
-	double kf_Q_init[NUMX];//状态噪声初值
-	double kf_P_init[NUMX];//状态协方差初值
-
-	double davp[9], GB[3], AB[3], GW[3], AW[3], GS[3], AS[3];
-	double gyro_std[3];
-	double acc_std[3];
-	double gyro_bias_walk[3];
-	double acc_bias_walk[3];
-
-
-	/*内存空间释放*/
-	void kffree();
-	/*滤波器初始化,状态转移矩阵的初始，状态噪声的初始*/
-	void kfinit();
-	/*状态转移矩阵*/
-	void upPhi(GINS_INS& ins, double dt);
-	/*观测矩阵赋值*/
-	void upHk(GINS_INS& ins, double *hk);
-	/*时间更新*/
-	void TUpdate(double dt, int option = 0);
-	/*量测更新*/
-	void MUpdate(double ZK[]);
-	/*反馈修正*/
-	void Feedback(GINS_INS& ins, double scater = 1.0, int option = 0);
-};
-/*GINS中间数据*/
 class Process_Data
 {
 public:
@@ -221,6 +165,102 @@ public:
 };
 
 
+class GINS_INS
+{
+public:
+	CEarth eth;
+	double qnb[4];
+	double Cnb[3 * 3];
+	/*dsf90 add,2018.4.25,安装误差相关变量, m系: mobile 坐标系*/
+	double PRY_Install[3];
+	double qmb[4];
+	double Cmb[3 * 3];
+	double Cbm[3 * 3];
+	double vm_car[3];
+	double att_car[3];
+	double Cnm[3 * 3];
+	double tDelay;
+	/*end add*/
+	double att[3], vn[3], pos[3], vnL[3], posL[3], vnL2[3], posL2[3];
+	double eb[3], db[3], lever[3], lever2[3], Kg[3 * 3], Ka[3 * 3];
+	double fn[3], an[3], web[3], wnb[3], wib[3], fb[3], ab[3], am[3], wim[3], fm[3];
+
+	double Mpv[3 * 3], Mpvvn[3], MpvCnb[9], CW[9];
+	double wm_1[3], vm_1[3];
+
+	double imutimetarge;
+	double dual_yaw;  /*双天线航向*/
+	double dual_yaw_h;/*双天线航向观测量*/
+	double wmpre[3], vmpre[3];
+					  //INS(void) { imutimetarge = 0; };
+	void INS(double Att[], double Vn[], double Pos[], double EB[], double DB[], double Lever[]);
+	//CSINS& operator=(const CSINS& ins);
+	int INS_process(Process_Data ilcd,double dt);
+	void Init(double Att[], double Vn[], double Pos[], double EB[], double DB[], double Lever[], double Lever2[], double PRY_install[]);
+	void Update(double wm[], double vm[], double dtime);
+	//void Lever();
+	void Lever(double pos1[], double vn1[], double pos2[], double vn2[], double lever[]);
+	//void SetOutLever(double Lever2[]);
+};
+
+
+
+class GINS_KF
+{
+public:
+	int ROW, COL, OPT;
+	double* xk;//状态量
+	double* Pxk;//状态量协方差
+	double* Phi;//状态转移矩阵
+	double* Qk;//状态噪声矩阵
+	double* Gk;
+	double* Hk;//观测矩阵
+	double* Rk;//观测噪声矩阵
+	double* xkpre;
+	double* dpos;
+	double* denu;
+	int  xflag;
+	int  zflag;
+	bool bGnssUpdata;
+	double kf_Q_init[NUMX];//状态噪声初值
+	double kf_P_init[NUMX];//状态协方差初值
+
+	double davp[9], GB[3], AB[3], GW[3], AW[3], GS[3], AS[3];
+	double gyro_std[3];
+	double acc_std[3];
+	double gyro_bias_walk[3];
+	double acc_bias_walk[3];
+
+
+	GINS_KF(int row = NUMX, int col = NUMV, int opt = 156);
+	GINS_KF& operator=(const GINS_KF& kftemp);
+
+	void GINS_KF_malloc(int row, int col,GINS_KF *kf_tmp);
+	//GINS_KF& operator=(const GINS_KF& kftemp);
+	/*内存空间释放*/
+	void kffree();
+	/*滤波器初始化,状态转移矩阵的初始，状态噪声的初始*/
+	void kfinit();
+	/*状态转移矩阵*/
+	void upPhi(GINS_INS& ins, double dt);
+	/*观测矩阵赋值*/
+	void upHk(GINS_INS& ins, double *hk);
+	/*时间更新*/
+	void TUpdate(double dt, int option = 0);
+	/*量测更新*/
+	void MUpdate(double ZK[]);
+	/*反馈修正*/
+	void Feedback(GINS_INS& ins, double scater = 1.0, int option = 0);
+	/*参数设置为常数*/
+	void setRk_constraint(void);
+	void MUpadte(GINS_INS& ins, double ZK[], int zflag = 0xffff);
+
+};
+/*GINS中间数据*/
+
+void MUpdate_Variable(int ROW, int COL, double Hk[], double Rk[], double ZK[], double xk[], double Pxk[], int zflag);
+void MUpdate_True(int ROW, int COL, double Hk[], double Rk[], double ZK[], double xk[], double Pxk[]);
+
 /*GINS解算类：INS+EKF*/
 class GINS_Process
 {
@@ -233,7 +273,7 @@ public:
 	GINS_INS inspre_forStatic;
 	double dGnssHeading2_forStatic;
 	GINS_KF kf;
-
+	GINS_KF kf_tmp;
 	bool bFileSave;
 	double dInitTimesMin;
 
@@ -241,6 +281,7 @@ public:
 	int iInitTimes_ms;
 
 	int c;
+	bool kf_init;
 	bool bAlign;
 	bool bStatic;
 	int iDriverMode; /*add by dsf90, 2018.5.31*/
@@ -259,7 +300,7 @@ public:
 	int num_ContinueFloat;
 	int num_ContinueFix;
 	int upmodel;
-	double wmpre[3], vmpre[3];
+
 
 	double pospre[3];
 
@@ -308,15 +349,11 @@ public:
 	int nspeed;
 	vector <gpos_t> heading_v;
 	vector<double> yaw_gnss;
-
+	void init(void);
 	bool CalAtt2(Process_Data& ilcd);
 	bool CalAtt(Process_Data& ilcd, int opt = 0);              //根据位置计算航向
 	bool KinmateAlign(Process_Data& ilcd, GINS_Process& gipro);
 };
-
-
-
-
 
 class GINS_YM
 {
@@ -352,16 +389,6 @@ public:
 	int GINS_data_correct(GINS_raw_t *pRaw);
 	int GINS_PROCESS_Lib(GINS_raw_t* pstRaw, GINS_result_t* pstOut);
 };
-
-class test
-{
-public :
-	double data[3];
-	int flag;
-	void init(void);
-};
-
-
 extern double timediff(gtime_t t1, gtime_t t2);
 extern gtime_t timeadd(gtime_t t, double sec);
 //extern int str2time(const char *s, int i, int n, gtime_t *t);
@@ -370,5 +397,5 @@ extern gtime_t epoch2time(const double *ep);
 extern void time2epoch(gtime_t t, double *ep);
 extern gtime_t gpst2time(int week, double sec);
 //extern double time2gpst(gtime_t t, int *week);
-
+void IMU_Filter(Process_Data ilcd);
 #endif

@@ -266,3 +266,23 @@ CGLV::CGLV(double Re, double f, double wie0, double g0)
 	kmph = 3.6;
 }
 
+int GINS_INS::INS_process(Process_Data ilcd, double dt)
+{
+	double *wmcur, *vmcur, wm[3], vm[3];
+	wmcur = ilcd.gyo; vmcur = ilcd.acc;
+	/*dsf90:wm = 0.5*(wmpre + wmcur)*dt; wm, 角度变化增量 rad；疑问：dt使用前需先更新！*/
+	/*dsf90:vm = 0.5*(vmpre + vmcur)*dt; vm, 速度变化增量 m/s*/
+	//均值
+	Mat_add(wmpre, wmcur, wm, 3, 1);
+	Mat_add(vmpre, vmcur, vm, 3, 1);
+	Mat_equal(wmcur, 3, 1, wmpre);
+	Mat_equal(vmcur, 3, 1, vmpre);
+	Mat_mulb(wm, 3, 1, 0.5, wm);
+	Mat_mulb(vm, 3, 1, 0.5, vm);
+	Mat_equal(wm, 3, 1, wib);
+	Mat_equal(vm, 3, 1, fb);
+	Mat_mulb(wm, 3, 1, dt, wm);
+	Mat_mulb(vm, 3, 1, dt, vm);
+	Update(wm, vm, dt);
+	return 1;
+}

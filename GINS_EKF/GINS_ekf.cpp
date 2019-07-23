@@ -3,8 +3,8 @@ void GINS_KF::kfinit()
 {
 	memset(xk, 0, sizeof(double)*ROW * 1);
 	memset(xkpre, 0, sizeof(double)*ROW * 1);
-	//memset(dpos, 0, sizeof(double) * 3 * 1);
-	//memset(denu, 0, sizeof(double) * 3 * 1);
+	memset(dpos, 0, sizeof(double) * 3 * 1);
+	memset(denu, 0, sizeof(double) * 3 * 1);
 	memset(Phi, 0, sizeof(double)*ROW*ROW);
 	memset(Hk, 0, sizeof(double)*COL*ROW);
 	memset(Rk, 0, sizeof(double)*COL * 1);
@@ -16,26 +16,98 @@ void GINS_KF::kfinit()
 	{
 		Pxk[i*ROW + i] = SQR(kf_P_init[i]);//状态协方差初始化
 	}
-
-
 	for (int i = 0; i<ROW; i++)
 	{
 		Qk[i*ROW + i] = SQR(kf_Q_init[i]);//状态噪声初始化
 	}
-/*
-	Gk[0 * ROW + 0] = -1; Gk[0 * ROW + 1] = 0; Gk[0 * ROW + 2] = 0;
-	Gk[1 * ROW + 0] = 0; Gk[1 * ROW + 1] = -1; Gk[1 * ROW + 2] = 0;
-	Gk[2 * ROW + 0] = 0; Gk[2 * ROW + 1] = 0; Gk[2 * ROW + 2] = -1;
-	Gk[3 * ROW + 3] = 1; Gk[3 * ROW + 4] = 0; Gk[3 * ROW + 5] = 0;
-	Gk[4 * ROW + 3] = 0; Gk[4 * ROW + 4] = 1; Gk[4 * ROW + 5] = 0;
-	Gk[5 * ROW + 3] = 0; Gk[5 * ROW + 4] = 0; Gk[5 * ROW + 5] = 1;
-	Gk[9 * ROW + 9] = 1.0;
-	Gk[10 * ROW + 10] = 1.0;
-	Gk[11 * ROW + 11] = 1.0;
-	Gk[12 * ROW + 12] = 1.0;
-	Gk[13 * ROW + 13] = 1.0;
-	Gk[14 * ROW + 14] = 1.0;
-	*/
+}
+
+//GINS_KF& GINS_KF::operator=(const GINS_KF& kftemp)
+////GIKF::GIKF(const GIKF& kftemp)
+//{
+//	ROW = kftemp.ROW;
+//	COL = kftemp.COL;
+//	OPT = kftemp.OPT;
+//	xflag = kftemp.xflag;
+//	zflag = kftemp.zflag;
+//	for (int i = 0;i<ROW;i++)
+//	{
+//		*(xk + i) = *(kftemp.xk + i);
+//		*(xkpre + i) = *(kftemp.xkpre + i);
+//	}
+//	for (int i = 0;i<ROW*ROW;i++)
+//	{
+//		*(Pxk + i) = *(kftemp.Pxk + i);
+//		*(Phi + i) = *(kftemp.Phi + i);
+//		*(Qk + i) = *(kftemp.Qk + i);
+//		*(Gk + i) = *(kftemp.Gk + i);
+//	}
+//	for (int i = 0;i<COL*ROW;i++)
+//	{
+//		*(Hk + i) = *(kftemp.Hk + i);
+//	}
+//	for (int i = 0;i<COL*COL;i++)
+//	{
+//		*(Rk + i) = *(kftemp.Rk + i);
+//	}
+//	for (int i = 0;i<3;i++)
+//	{
+//		*(dpos + i) = *(kftemp.dpos + i);
+//		*(denu + i) = *(kftemp.denu + i);
+//	}
+//	bGnssUpdata = kftemp.bGnssUpdata;
+//	return(*this);
+//}
+
+void GINS_KF::GINS_KF_malloc(int row, int col, GINS_KF *kf_tmp)
+{
+	ROW = row;
+	COL = col;
+	OPT = 156;
+	xflag = 0xffffffff;
+	zflag = 0xffffffff;
+	xk = (double*)__ml_zero(sizeof(double)*ROW * 1);
+	xkpre = (double*)__ml_zero(sizeof(double)*ROW * 1);
+	Pxk = (double*)__ml_zero(sizeof(double)*ROW*ROW);
+	Phi = (double*)__ml_zero(sizeof(double)*ROW*ROW);
+	Qk = (double*)__ml_zero(sizeof(double)*ROW*ROW);
+	Gk = (double*)__ml_zero(sizeof(double)*ROW*ROW);
+	Hk = (double*)__ml_zero(sizeof(double)*COL*ROW);
+	Rk = (double*)__ml_zero(sizeof(double)*COL*COL);
+	dpos = (double*)__ml_zero(sizeof(double) * 3);
+	denu = (double*)__ml_zero(sizeof(double) * 3);
+	bGnssUpdata = false;
+	//ROW = kf_tmp->ROW;
+	//COL = kf_tmp->COL;
+	//OPT = kf_tmp->OPT;
+	//xflag = kf_tmp->xflag;
+	//zflag = kf_tmp->zflag;
+	//for (int i = 0;i<ROW;i++)
+	//{
+	//	*(xk + i) = *(kf_tmp->xk + i);
+	//	*(xkpre + i) = *(kf_tmp->xkpre + i);
+	//}
+	//for (int i = 0;i<ROW*ROW;i++)
+	//{
+	//	*(Pxk + i) = *(kf_tmp->Pxk + i);
+	//	*(Phi + i) = *(kf_tmp->Phi + i);
+	//	*(Qk + i) = *(kf_tmp->Qk + i);
+	//	*(Gk + i) = *(kf_tmp->Gk + i);
+	//}
+	//for (int i = 0;i<COL*ROW;i++)
+	//{
+	//	*(Hk + i) = *(kf_tmp->Hk + i);
+	//}
+	//for (int i = 0;i<COL*COL;i++)
+	//{
+	//	*(Rk + i) = *(kf_tmp->Rk + i);
+	//}
+	//for (int i = 0;i<3;i++)
+	//{
+	//	//*(dpos + i) = *(kf_tmp->dpos + i);
+	//	//*(denu + i) = *(kf_tmp->denu + i);
+	//}
+	//bGnssUpdata = kf_tmp->bGnssUpdata;
 }
 
 void GINS_KF::kffree()
@@ -214,8 +286,35 @@ void GINS_KF::MUpdate(double ZK[])
 	invPy = NULL;
 	KPyKt = NULL;
 }
+void GINS_KF::setRk_constraint(void)
+{
+	/*att*/
+	Rk[0] = SQR(0.1*D2R);
+	Rk[1] = SQR(0.1*D2R);
+	Rk[2] = SQR(0.1*D2R);
+	/*vel*/
+	Rk[3] = SQR(0.1);
+	Rk[4] = SQR(0.1);
+	Rk[5] = SQR(0.1);
+	/*pos*/
+	Rk[6] = SQR(0.0000001*D2R);
+	Rk[7] = SQR(0.0000001*D2R);
+	Rk[8] = SQR(0.001);
+	/*vel_body*/
+	Rk[9] = SQR(0.1);
+	Rk[10] = SQR(0.1);
+	Rk[11] = SQR(0.1);
+	//Rk[12] = SQR(InitParam.dKfInitP_OdoHeading);
+}
+void GINS_KF::MUpadte(GINS_INS& ins, double ZK[], int zflag)
+{
+	double* hk = (double*)__ml_zero(sizeof(double)*COL*ROW);
 
+	upHk(ins, hk);
+	MUpdate_Variable(ROW, COL, hk, Rk, ZK, xk, Pxk, zflag);
 
+	free(hk);
+}
 void GINS_KF::Feedback(GINS_INS& ins, double scater, int option)
 {
 	double datt[3], dvn[3], dpos[3], deb[3], ddb[3], dPRY[3], dlever[3];
@@ -283,7 +382,7 @@ void GINS_KF::Feedback(GINS_INS& ins, double scater, int option)
 
 void GINS_KF::upPhi(GINS_INS& ins, double dt)
 {
-	Mat_equal(Phi, ROW, ROW, 0);
+	//Mat_equal(Phi, ROW, ROW, 0);
 
 	double sl, cl, tl, secl, secl2, f_RMh, f_RNh, f_RMh2, f_RNh2, f_clRNh;
 	sl = sin(ins.pos[0]); cl = cos(ins.pos[0]);
@@ -506,4 +605,61 @@ void GINS_KF::upHk(GINS_INS& ins, double *hk)
 
 	/*dsf90:载体速度观测（里程计航向）*/
 	hk[12 * ROW + 11] = -1;
+}
+
+GINS_KF::GINS_KF(int row, int col, int opt)
+{
+	ROW = row;
+	COL = col;
+	OPT = opt;
+	xflag = 0xffffffff;
+	zflag = 0xffffffff;
+	xk = (double*)__ml_zero(sizeof(double)*ROW * 1);
+	xkpre = (double*)__ml_zero(sizeof(double)*ROW * 1);
+	Pxk = (double*)__ml_zero(sizeof(double)*ROW*ROW);
+	Phi = (double*)__ml_zero(sizeof(double)*ROW*ROW);
+	Qk = (double*)__ml_zero(sizeof(double)*ROW*ROW);
+	Gk = (double*)__ml_zero(sizeof(double)*ROW*ROW);
+	Hk = (double*)__ml_zero(sizeof(double)*COL*ROW);
+	Rk = (double*)__ml_zero(sizeof(double)*COL*COL);
+	dpos = (double*)__ml_zero(sizeof(double) * 3);
+	denu = (double*)__ml_zero(sizeof(double) * 3);
+	bGnssUpdata = false;
+}
+
+GINS_KF& GINS_KF::operator=(const GINS_KF& kftemp)
+//GIKF::GIKF(const GIKF& kftemp)
+{
+	ROW = kftemp.ROW;
+	COL = kftemp.COL;
+	OPT = kftemp.OPT;
+	xflag = kftemp.xflag;
+	zflag = kftemp.zflag;
+	for (int i = 0;i<ROW;i++)
+	{
+		*(xk + i) = *(kftemp.xk + i);
+		*(xkpre + i) = *(kftemp.xkpre + i);
+	}
+	for (int i = 0;i<ROW*ROW;i++)
+	{
+		*(Pxk + i) = *(kftemp.Pxk + i);
+		*(Phi + i) = *(kftemp.Phi + i);
+		*(Qk + i) = *(kftemp.Qk + i);
+		*(Gk + i) = *(kftemp.Gk + i);
+	}
+	for (int i = 0;i<COL*ROW;i++)
+	{
+		*(Hk + i) = *(kftemp.Hk + i);
+	}
+	for (int i = 0;i<COL*COL;i++)
+	{
+		*(Rk + i) = *(kftemp.Rk + i);
+	}
+	for (int i = 0;i<3;i++)
+	{
+		*(dpos + i) = *(kftemp.dpos + i);
+		*(denu + i) = *(kftemp.denu + i);
+	}
+	bGnssUpdata = kftemp.bGnssUpdata;
+	return(*this);
 }

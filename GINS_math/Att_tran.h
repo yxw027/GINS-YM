@@ -25,4 +25,8 @@ void rv2q(double rv[], double q[]);
 void qmuln(double q1[], double q2[], double q[]);
 //姿态更新，连乘两次
 void qupdt2(double qnb0[], double rv_ib[], double rv_in[], double qnb1[]);
+
+
+void difpos_b(double pospre[3], double poscur[3], double att[3], double dpos_b[3]);
+void diffpos(double blhpre[3], double blhcur[3], double denu[3]);
 #endif

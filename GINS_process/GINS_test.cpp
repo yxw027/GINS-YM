@@ -187,6 +187,9 @@ int main()
 		//printf("data:%f,%d\n", stRaw_test.gnssdata.second, stRaw_test.bGPSavail);
 		memset(&stOut, 0, sizeof(stOut));
 		int GINS_flag = GINS_test_ym.GINS_PROCESS_Lib(&stRaw_test, &stOut);
+		stRaw_test.bGPSavail = 0;
+		stRaw_test.bMEMSavail = 0;
+		stRaw_test.bPPSavail = 0;
 	}
 	return 0;
 }
@@ -323,6 +326,7 @@ int GINS_string_decode(char *buff,GINS_raw_t *pRaw)
 				return -2;
 			}
 			pRaw->bMEMSavail = true;
+			pRaw->bGPSavail = false;
 			return 1;
 		}
 }
