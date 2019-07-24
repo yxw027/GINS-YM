@@ -84,18 +84,20 @@ void GINS_INS::Update(double wm[], double vm[], double dtime)
 	Mat_mulb(an, 3, 1, dtime,ant);
 	Mat_add(vn, ant, vn1, 3, 1);
 
-	/*dsf90:位置更新*/
-	/*dsf90:Mpvvn =  0.5 * Mpv X (vn+vn1)*/
-	/*dsf90:pos = pos + 0.5 * dt * Mpv X (vn+vn1)*/
-	/*dsf90:vn = vn1*/
+
 	Mpv[0 * 3 + 1] = 1.0 / eth.RMh;
 	Mpv[1 * 3 + 0] = 1.0 / eth.clRNh;
 	Mpv[2 * 3 + 2] = 1.0;
 	double vnvn1[3], Mvnt[3];
 	Mat_add(vn, vn1, vnvn1, 3, 1);
 	Mat_mulb(vnvn1, 3, 1, 0.5, vnvn1);
+
+	/*dsf90:位置更新*/
+	/*dsf90:vn = vn1*/
+	/*dsf90:Mpvvn =  0.5 * Mpv X (vn+vn1)*/
 	Mat_mul(Mpv, vnvn1, 3, 3, 1, Mpvvn);
 	Mat_mulb(Mpvvn, 3, 1, dtime, Mvnt);
+	/*dsf90:pos = pos + 0.5 * dt * Mpv X (vn+vn1)*/
 	Mat_add(pos, Mvnt, pos,3, 1);
 	Mat_equal(vn1, 3, 1, vn);
 
@@ -217,8 +219,8 @@ void CEarth::UpdatePV(double pos[], double vn[])
 
 	/*dsf90: RMh = Rm + h = Re*(1-e*e)/(1-(e*sin(lat)*(e*sin(lat))^(3/2) + h*/
 	/*dsf90: RNh = Rn + h = Re/(1-(e*sin(lat)*(e*sin(lat))^(1/2) + h*/
-	RMh = a*(1 - e2) / sq / sq2 + pos[2]; f_RMh = 1.0 / RMh;
-	RNh = a / sq2 + pos[2]; f_RNh = 1.0 / RNh;
+	RMh = RE*(1 - e2) / sq / sq2 + pos[2]; f_RMh = 1.0 / RMh;
+	RNh = RE / sq2 + pos[2]; f_RNh = 1.0 / RNh;
 	clRNh = cl*RNh; f_clRNh = 1.0 / clRNh;
 
 	gn[2] = -(glv.g0*(1 + 5.27094e-3*sl2 + 2.32718e-5*sl4) - 3.086e-6*pos[2]);
@@ -275,12 +277,16 @@ int GINS_INS::INS_process(Process_Data ilcd, double dt)
 	//均值
 	Mat_add(wmpre, wmcur, wm, 3, 1);
 	Mat_add(vmpre, vmcur, vm, 3, 1);
+
 	Mat_equal(wmcur, 3, 1, wmpre);
 	Mat_equal(vmcur, 3, 1, vmpre);
+
 	Mat_mulb(wm, 3, 1, 0.5, wm);
 	Mat_mulb(vm, 3, 1, 0.5, vm);
+
 	Mat_equal(wm, 3, 1, wib);
 	Mat_equal(vm, 3, 1, fb);
+
 	Mat_mulb(wm, 3, 1, dt, wm);
 	Mat_mulb(vm, 3, 1, dt, vm);
 	Update(wm, vm, dt);

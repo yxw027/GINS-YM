@@ -309,7 +309,7 @@ public:
 	double dposb_sync[3];
 	bool bPPSSync;
 
-	//void Init(void);
+	void Init(void);
 	//void IMUcone(Process_Data ilcd, double wmm[3], double vmm[3]);
 	//void correctSideslip(void);
 	void loadPPSSyncInsData(Process_Data &ilcd, GINS_INS &ppsins);

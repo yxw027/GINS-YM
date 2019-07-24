@@ -658,7 +658,7 @@ int GINS_Process::GINS_P2(Process_Data ilcd)
 		/*保存PPS时刻的ins信息*/
 		inspre_forPPS = ins;
 	}
-	//ret = ZUpdate(ilcd);
+	ret = ZUpdate(ilcd);
 
 	//double ins_speed = sqrt(pow(ins.vm_car[0], 2) + pow(ins.vm_car[1], 2));
 	//if (ilcd.bMEMSavail && ins_speed > InitParam.dGnssVerMin_ForInit)
@@ -874,6 +874,14 @@ bool GINS_Align::CalAtt2(Process_Data& ilcd)
 	gnssstate = ilcd.stat;
 	return true;
 }
+
+
+void GINS_Process::Init(void)
+{
+
+}
+
+
 
 void GINS_Process::loadPPSSyncInsData(Process_Data &ilcd, GINS_INS &ppsins)
 {
