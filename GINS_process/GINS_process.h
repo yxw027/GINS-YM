@@ -5,6 +5,8 @@
 #include "Att_tran.h"
 #include "GINS_process_lib.h"
 #include "IMU_Filter.h"
+#include "GINS_test.h"
+#include "GINS_DataSave.h"
 #include <stdlib.h>
 #include <time.h>
 #include <string>
@@ -50,8 +52,8 @@
 #define UPDATE_Z_CONS_VER_XYZ 0x0D00
 
 
-//template<typename T>
-//using malloc_allocator = class std::allocator<T>;
+template<typename T>
+using malloc_allocator = class std::allocator<T>;
 using namespace std;
 const static double gpst0[] = { 1980,1, 6,0,0,0 }; /* gps time reference */
 const static double gst0[] = { 1999,8,22,0,0,0 }; /* galileo system time reference */
@@ -122,13 +124,12 @@ public:
 	double vn[3];  // gnss vn（ENU）
 	int stat, ns;   // sol stat/ sat num
 	int snsum, nsused;   // sat signal sum/used sat num
+	int imu_raw_cnt;
 	double hdop;   // HDOP
 	int m0;
 	double age;    // 0/diffage
 	double GPV_RK[36];
 	double GA_RK[3];
-	double yaw_U62R;
-	double yaw_var_U62R;
 	double lever;
 	double heading2;/*双天线航向*/
 	double heading2_std;
@@ -145,17 +146,13 @@ public:
 	double gyo_iir[3]; // xyz陀螺(deg/s),滤波
 	double mag_iir[3]; // Gauss,滤波
 
-	double syst;
-	double calt;   // position time
 	bool bUpdate, bValid;
 	bool bGPSavail, bPPSavail;  //GPS available（pos/vel）, PPSavailable
-	bool bOnlyVelUp;     //only veloity update,position don't update
 	bool bMEMSavail;
-	bool bODOavail;      //odometry updata
 	double gnss_speed;
 	double heading;
 
-	void Init();
+	void Init(void);
 	//void Rest();
 	//CLCData& operator=(const CLCData& lcdata);
 	//void getHMS(double gpstimetarge);
@@ -198,7 +195,7 @@ public:
 	int INS_process(Process_Data ilcd,double dt);
 	void Init(double Att[], double Vn[], double Pos[], double EB[], double DB[], double Lever[], double Lever2[], double PRY_install[]);
 	void Update(double wm[], double vm[], double dtime);
-	//void Lever();
+	void Lever();
 	void Lever(double pos1[], double vn1[], double pos2[], double vn2[], double lever[]);
 	//void SetOutLever(double Lever2[]);
 };
@@ -253,6 +250,11 @@ public:
 	void Feedback(GINS_INS& ins, double scater = 1.0, int option = 0);
 	/*参数设置为常数*/
 	void setRk_constraint(void);
+	/*权重处理*/
+	void downgrade_car(Process_Data ilcd, double denu[3], double posrk[3]);
+	/*降权处理*/
+	void downgrade(Process_Data ilcd, int scater, double posrk[3]);
+	void resetRk(Process_Data ilcd);
 	void MUpadte(GINS_INS& ins, double ZK[], int zflag = 0xffff);
 
 };
@@ -260,6 +262,19 @@ public:
 
 void MUpdate_Variable(int ROW, int COL, double Hk[], double Rk[], double ZK[], double xk[], double Pxk[], int zflag);
 void MUpdate_True(int ROW, int COL, double Hk[], double Rk[], double ZK[], double xk[], double Pxk[]);
+
+struct gpos
+{
+	double time;
+	double lat, lon, hig;
+	double ve, vn, vu;
+	double yaw;
+	int state;
+};
+typedef struct gpos gpos_t;
+void equalgpos(gpos_t* GP, Process_Data* lcdata);
+
+
 
 /*GINS解算类：INS+EKF*/
 class GINS_Process
@@ -294,46 +309,37 @@ public:
 	int num_GNSSrestore;
 	int num_GNSSmupdate;
 	double preheading;
-
+	bool busegnssvn;
+	bool bgnssskip;
 	int num_GPSskip;
 	int num_GPSloose;
 	int num_ContinueFloat;
 	int num_ContinueFix;
 	int upmodel;
-
-
+	bool bGnssLost;
+	int  bGnssLostNum;
+	int bGnssNum;
 	double pospre[3];
 
 	double dpos_sync[3];
 	double dvn_sync[3];
 	double dposb_sync[3];
 	bool bPPSSync;
+	vector<gpos, malloc_allocator<gpos> >pregpos;
 
 	void Init(void);
-	//void IMUcone(Process_Data ilcd, double wmm[3], double vmm[3]);
-	//void correctSideslip(void);
+	void correctSideslip(void);
 	void loadPPSSyncInsData(Process_Data &ilcd, GINS_INS &ppsins);
 	//void getDualAntBias(Process_Data &ilcd, double dDifYaw);
-	//void getOdoHeadingBias(Process_Data &ilcd, double dDifHeading);
 	//void KfInitOver();
 	//void updateKfInitStatus(Process_Data &ilcd);
-	//void GnssIntegrity(Process_Data &ilcd, double dheading, double dvn[3]);
-	//void OdoIntegrity(Process_Data &ilcd);
+	void GnssIntegrity(Process_Data &ilcd, double dheading, double dvn[3]);
 	int GINS_P2(Process_Data ilcd);
 	//void setlever(double leverdt[]);
 	int ZUpdate(Process_Data ilcd);
 };
 
-struct gpos
-{
-	double time;
-	double lat, lon, hig;
-	double ve, vn, vu;
-	double yaw;
-	int state;
-};
-typedef struct gpos gpos_t;
-void equalgpos(gpos_t* GP, Process_Data* lcdata);
+
 
 class GINS_Align
 {
@@ -365,14 +371,18 @@ public:
 	GINS_Align GI_align;
 	Process_Data GI_pd, pre_GI_pd;//gins中间数据
 								  //DebugFile debugfile;
-	int raw_cnt;
+	int imu_raw_cnt;
 	int dbg_cnt;
 	int rst_cnt;
 	bool GetGPS;//gps状态
 	bool bAlign;
 	double eb[3], db[3];
 	char cGilcInitMsg[2048];
-
+	vector<double> IMU_gyro_winx;
+	vector<double> IMU_gyro_winy;
+	vector<double> IMU_gyro_winz;
+	double gyro_bias[3];
+	bool bias_init;
 	double dInstallMat[9];
 	double dInstallAttCfg[3];
 
@@ -381,6 +391,8 @@ public:
 	//GilcProcess(void) {};
 
 	int GINS_Init(GINS_cfg_t* cfgdata);
+	int IMU_static_bias(void);
+	void GINS_result(GINS_result_t *presult,int GINS_flag);
 	//void GILC_Update_Status(GINS_result_t* pstOut, int iGilcStatus, int iGnssStatus, bool bDualAntAvail);
 	void GINS_GnssRaw_Correct(GINS_raw_t *pRaw);
 	void GINS_ImuAxis_Correct(GINS_raw_t *pRaw);
@@ -398,4 +410,15 @@ extern void time2epoch(gtime_t t, double *ep);
 extern gtime_t gpst2time(int week, double sec);
 //extern double time2gpst(gtime_t t, int *week);
 void IMU_Filter(Process_Data ilcd);
+bool busegnssvel_car(double gnssvel[3], double dvel[3], double dheading);
+bool bgnssskip_car(vector<gpos_t, malloc_allocator<gpos_t> > v_gps, double iposcur[3], int numins);
+
+
+void SaveRst(GINS_Process *gipro, Process_Data *ilcd);
+void printf_posLC(FILE *fp, GINS_INS *ins, Process_Data *ilcd);
+void printf_kf(FILE *fp, GINS_KF& kf, double gpstimetarget);
+void printf_prosess(FILE *fp, GINS_Process *gipro, Process_Data *ilcd);
+void printf_posAnt(FILE *fp, GINS_INS *ins, Process_Data *ilcd);
+int GINS_string_decode(char *buff, GINS_raw_t *pRaw);
+
 #endif

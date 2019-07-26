@@ -27,6 +27,49 @@ int GINS_YM::GINS_data_correct(GINS_raw_t *pRaw)
 	return 1;
 }
 
+void GINS_YM::GINS_result(GINS_result_t *presult, int GINS_flag)
+{
+	for (int i = 0;i < 3;i++)
+	{
+		presult->acc[i] = GI_pro.ins.fb[i];//去掉零偏后加速度
+		presult->gyro[i] = GI_pro.ins.wib[i];//去掉零偏后角速度 
+		presult->acc_car[i] = GI_pro.ins.am[i];
+		presult->vel_enu[i] = GI_pd.vn[i];
+	}
+	presult->car_status = GI_pro.bTurn;
+	presult->gilc_status =GINS_flag ;
+	presult->heading = GI_pd.heading2;
+	presult->speed = GI_pd.gnss_speed;
+	presult->week = GI_pd.week;
+	presult->second = GI_pd.imutimetarge;
+	presult->pitch = GI_pro.ins.att_car[0];
+	presult->roll = GI_pro.ins.att_car[1];
+	presult->yaw = GI_pro.ins.att_car[2];
+	if (GI_cfg.iOutReferPoint == 1)//Imu
+	{
+		presult->lla[0] = GI_pro.ins.pos[0];
+		presult->lla[1] = GI_pro.ins.pos[1];
+		presult->lla[2] = GI_pro.ins.pos[2];
+	}
+	if (GI_cfg.iOutReferPoint == 2)//gnss
+	{
+		presult->lla[0] = GI_pro.ins.posL[0];
+		presult->lla[1] = GI_pro.ins.posL[1];
+		presult->lla[2] = GI_pro.ins.posL[2];
+	}
+	presult->std_pry[0] = sqrt(GI_pro.kf.Pxk[0 * GI_pro.kf.ROW + 0])*R2D;
+	presult->std_pry[1] = sqrt(GI_pro.kf.Pxk[1 * GI_pro.kf.ROW + 1])*R2D;
+	presult->std_pry[2] = sqrt(GI_pro.kf.Pxk[2 * GI_pro.kf.ROW + 2])*R2D;
+
+	presult->std_vel[0] = sqrt(GI_pro.kf.Pxk[3 * GI_pro.kf.ROW + 3]);
+	presult->std_vel[1] = sqrt(GI_pro.kf.Pxk[4 * GI_pro.kf.ROW + 4]);
+	presult->std_vel[2] = sqrt(GI_pro.kf.Pxk[5 * GI_pro.kf.ROW + 5]);
+	presult->std_speed = sqrt(SQR(presult->std_vel[0]) + SQR(presult->std_vel[1]) + SQR(presult->std_vel[2]));
+
+	presult->std_lla[0] = sqrt(GI_pro.kf.Pxk[6 * GI_pro.kf.ROW + 6])*RE_WGS84;
+	presult->std_lla[1] = sqrt(GI_pro.kf.Pxk[7 * GI_pro.kf.ROW + 7])*RE_WGS84;
+	presult->std_lla[2] = sqrt(GI_pro.kf.Pxk[8 * GI_pro.kf.ROW + 8]);
+}
 
 void GINS_YM::GINS_GnssRaw_Correct(GINS_raw_t *pRaw)
 {
@@ -60,8 +103,8 @@ void GINS_YM::GINS_GnssRaw_Correct(GINS_raw_t *pRaw)
 			pRaw->gnssdata.stat = 4;
 			break;
 		default:
-			//gilc_log("libgilc --- raw gnss state error: week %d, sec %f, state %d\r\n",
-				//pRaw->gnssdata.week, pRaw->gnssdata.second, pRaw->gnssdata.pos_type);
+			GINS_log("GINS_RAW_ERROR gnss state error: week %d, sec %f, state %d\r\n",
+				pRaw->gnssdata.week, pRaw->gnssdata.second, pRaw->gnssdata.pos_type);
 			pRaw->gnssdata.stat = 0;
 			break;
 		}
@@ -78,8 +121,8 @@ void GINS_YM::GINS_GnssRaw_Correct(GINS_raw_t *pRaw)
 		case 9:/*SBAS*/
 			break;
 		default:
-			//gilc_log("libgilc --- raw gnss state error: week %d, sec %f, state %d\r\n",
-				//pRaw->gnssdata.week, pRaw->gnssdata.second, pRaw->gnssdata.stat);
+			GINS_log("GINS_RAW_ERROR gnss state error: week %d, sec %f, state %d\r\n",
+				pRaw->gnssdata.week, pRaw->gnssdata.second, pRaw->gnssdata.stat);
 			pRaw->gnssdata.stat = 0;
 			break;
 		}
@@ -100,13 +143,39 @@ void GINS_YM::GINS_ImuAxis_Correct(GINS_raw_t *pRaw)
 	//Mat_mul(dInstallMat, pRaw->memsdate.accel, 3, 3, 1, pRaw->memsdate.accel);
 }
 
-
+int GINS_YM::IMU_static_bias(void)
+{
+	if (GI_align.bStatic == 1)
+	{
+		if (IMU_gyro_winx.size() < 500)
+		{
+			IMU_gyro_winx.push_back(GI_pd.gyo[0]);
+			IMU_gyro_winy.push_back(GI_pd.gyo[1]);
+			IMU_gyro_winz.push_back(GI_pd.gyo[2]);
+			return 0;
+		}
+		else
+		{
+			gyro_bias[0] = GetAveStd(IMU_gyro_winx, 0);
+			gyro_bias[1] = GetAveStd(IMU_gyro_winy, 0);
+			gyro_bias[2] = GetAveStd(IMU_gyro_winz, 0);
+			IMU_gyro_winx.clear();
+			IMU_gyro_winy.clear();
+			IMU_gyro_winz.clear();
+			return 1;
+		}
+	}
+	else
+	{
+		return 0;
+	}
+}
 
 int  GINS_YM::GINS_Rawdata_Quality(GINS_raw_t *pRaw)
 {
 	if (!(pRaw->bMEMSavail || pRaw->bGPSavail || pRaw->bPPSavail))
 	{
-		printf("Raw Data error!!! %d,%d,%d\r\n",pRaw->bMEMSavail,pRaw->bGPSavail,pRaw->bPPSavail);
+		GINS_log("GINS_RAW_ERROR Raw Data NO avail!!! %d,%d,%d\r\n",pRaw->bMEMSavail,pRaw->bGPSavail,pRaw->bPPSavail);
 		return 0;
 	}
 
@@ -120,16 +189,11 @@ int  GINS_YM::GINS_Rawdata_Quality(GINS_raw_t *pRaw)
 		GI_pd.imutimetarge = pRaw->imutimetarget;
 		if (GI_pd.imutimetarge - IMU_time_pre > 0.1)//IMU time error
 		{
-			//printf("libgilc --- raw imu time error: week %d, sec %f, last %f \r\n",
-				//GI_pd.week, GI_pd.imutimetarge, IMU_time_pre);
-			if (GI_pd.imutimetarge - IMU_time_pre)
-			{
-				//GINS_init();
-			}
+			GINS_log("GINS_RAW_ERROR imu time error: week %d, sec %f, last %f \r\n",
+				GI_pd.week, GI_pd.imutimetarge, IMU_time_pre);
 			IMU_time_pre = GI_pd.imutimetarge;
 		}
 		IMU_time_pre = GI_pd.imutimetarge;
-
 		GI_pd.gyo[0] = pRaw->memsdate.gyro[0] * D2R;
 		GI_pd.gyo[1] = pRaw->memsdate.gyro[1] * D2R;
 		GI_pd.gyo[2] = pRaw->memsdate.gyro[2] * D2R;
@@ -137,19 +201,19 @@ int  GINS_YM::GINS_Rawdata_Quality(GINS_raw_t *pRaw)
 		GI_pd.acc[1] = pRaw->memsdate.accel[1] * glv_g;
 		GI_pd.acc[2] = pRaw->memsdate.accel[2] * glv_g;
 
-		/*dsf90:IMU数据检验*/
+		/*IMU数据检验*/
 		for (int i = 0; i < 3; i++)
 		{
 			if (fabs(GI_pd.acc[i]) >= 10 * glv_g)/*加速度上限 10g*/
 			{
-				printf("libgilc --- raw imu accel error: week %d, sec %f, accel %f %f %f g\r\n",
+				GINS_log("GINS_RAW_ERROR imu accel exeed 10g: week %d, sec %f, accel %f %f %f g\r\n",
 					GI_pd.week, GI_pd.imutimetarge,
 					GI_pd.acc[0] / glv_g, GI_pd.acc[1] / glv_g, GI_pd.acc[2] / glv_g);
 				return 0;
 			}
 			if (fabs(GI_pd.gyo[i]) >= 1000 * D2R)/*陀螺仪上限 1000deg/s*/
 			{
-				printf("libgilc --- raw imu gyro error: week %d, sec %f, gyro %f %f %f deg/s\r\n",
+				GINS_log("GINS_RAW_ERROR imu gyro exeed 1000deg/s: week %d, sec %f, gyro %f %f %f deg/s\r\n",
 					GI_pd.week, GI_pd.imutimetarge,
 					GI_pd.gyo[0] * R2D, GI_pd.gyo[1] * R2D, GI_pd.gyo[2] * R2D);
 				return 0;
@@ -158,19 +222,18 @@ int  GINS_YM::GINS_Rawdata_Quality(GINS_raw_t *pRaw)
 
 		if (pRaw->bPPSavail)
 		{
-			//int dTime_ms = 0;
-			////int imu_period_ms = 20; /*dsf90:2018.9.20,同步时间误差,最大允许20ms*/
-			//int imu_period_ms = s_cfgdata.imu_period_ms>InitParam.iPpsTimeErrMax_ms ? s_cfgdata.imu_period_ms : InitParam.iPpsTimeErrMax_ms;
-			//dTime_ms = (int)((ilcd.imutimetarge - (int)ilcd.imutimetarge) * 1000);
-			//dTime_ms %= GNSS_PERIODE_MS;/*dsf90:默认GNSS 5Hz*/
-			//if (dTime_ms < imu_period_ms || dTime_ms>(GNSS_PERIODE_MS - imu_period_ms))
-			//{
-			//	pIlcData->bPPSavail = pRaw->bPPSavail;
-			//}
-			//else
-			//{
-			//	printf("%8.6f: Update PPS flag, last flag %d, new flag %d,err times %dms\r\n", pRaw->imutimetarget, pRaw->bPPSavail, pIlcData->bPPSavail, dTime_ms);
-			//}
+			int dTime_ms = 0;
+			int imu_period_ms = 20;
+			dTime_ms = (int)((GI_pd.imutimetarge - (int)GI_pd.imutimetarge) * 1000);//取非整秒数
+			dTime_ms %= GNSS_PERIODE_MS;/*默认GNSS 5Hz*/
+			if (dTime_ms < imu_period_ms || dTime_ms>(GNSS_PERIODE_MS - imu_period_ms))
+			{
+				GI_pd.bPPSavail = pRaw->bPPSavail;
+			}
+			else
+			{
+				GINS_log("GINS_RAW_ERROR pps time err %8.6f dTime %dms\r\n", pRaw->imutimetarget, dTime_ms);
+			}
 		}
 		GI_pd.bMEMSavail = true;
 	}
@@ -184,7 +247,7 @@ int  GINS_YM::GINS_Rawdata_Quality(GINS_raw_t *pRaw)
 		iGnssSec = (int)(pRaw->gnssdata.second*1e3);
 		if (fabs(iGnssSec - iGnssSec_pre - 200) > 10)
 		{
-			//printf("GNSS RAW LOST : last %d, now %d------------\r\n", iGnssSec_pre, iGnssSec);
+			GINS_log("GINS_RAW_ERROR gnss raw lost : last %d, now %d------------\r\n", iGnssSec_pre, iGnssSec);
 		}
 		iGnssSec_pre = iGnssSec;
 
@@ -192,46 +255,33 @@ int  GINS_YM::GINS_Rawdata_Quality(GINS_raw_t *pRaw)
 		GI_pd.week = pRaw->gnssdata.week;
 		dErrTime = fabs(pRaw->gnssdata.second - GI_pd.imutimetarge);
 
-#ifndef SYNC_PPS_UNUSED
-		/*dsf90:时间同步检验*/
-		if (!GI_pd.week || dErrTime >0.50)
+		if (GI_cfg.GnssPosMode == 1)
 		{
-			printf("libgilc --- raw time error: week %d, sec %f, imu_sec %f, diff time %f s\r\n",
-				GI_pd.week, GI_pd.gpstimetarge,
-				GI_pd.imutimetarge, dErrTime);
-			return 0;
-		}
-#endif
-		//if (s_cfgdata.eGnssPosMode == GILC_GNSSPOS_MODE__LLA_DEG)
-		//{
 		GI_pd.pos[0] = pRaw->gnssdata.lat*D2R;
 		GI_pd.pos[1] = pRaw->gnssdata.lon*D2R;
-		//}
-		//else if (s_cfgdata.eGnssPosMode == GILC_GNSSPOS_MODE__LLA_RAD)
-		//{
-		//GI_pd.pos[0] = pRaw->gnssdata.lat;
-		//GI_pd.pos[1] = pRaw->gnssdata.lon;
-		//}
-		//else
-		//{
-		//	gilc_log("libgilc --- cfg pos mode error, %d\r\n", s_cfgdata.eGnssPosMode);
-		//	return GILC_RET__ERR_CFG_POS_MODE;
-		//}
-
-
+		}
+		else if (GI_cfg.GnssPosMode == 2)
+		{
+		GI_pd.pos[0] = pRaw->gnssdata.lat;
+		GI_pd.pos[1] = pRaw->gnssdata.lon;
+		}
+		else
+		{
+			GINS_log("GINS_RAW_ERROR cfg pos mode error, %d\r\n", GI_cfg.GnssPosMode);
+			return 0;
+		}
 		GI_pd.pos[2] = pRaw->gnssdata.alt;
 
-		/*dsf90:经纬高输入检验*/
 		/*经纬度上限 180deg；高程上限10000m*/
 		if ((fabs(GI_pd.pos[0]) > PI) || (fabs(GI_pd.pos[1]) > PI) || (fabs(GI_pd.pos[2]) >= 10000))
 		{
-			printf("libgilc --- raw pos error: week %d, sec %f, pos %f rad %f rad %f m\r\n",
+			GINS_log("GINS_RAW_ERROR raw gnss_pos error: week %d, sec %f, pos %f rad %f rad %f m\r\n",
 				GI_pd.week, GI_pd.gpstimetarge,
 				GI_pd.pos[0], GI_pd.pos[1], GI_pd.pos[2]);
-			//return GILC_RET__ERR_RAW_POS_PARAM;
+			return 0;
 		}
 
-		if (1)
+		if (GI_cfg.GnssVelMode==1)
 		{
 			double vel_ecef[3] = { 0 };
 			vel_ecef[0] = pRaw->gnssdata.vx_ecef;
@@ -253,25 +303,22 @@ int  GINS_YM::GINS_Rawdata_Quality(GINS_raw_t *pRaw)
 		}
 		else
 		{
-			//printf("libgilc --- cfg vel mode error, %d\r\n", s_cfgdata.eGnssVelMode);
+			GINS_log("GINS_RAW_ERROR cfg vel mode error, %d\r\n", GI_cfg.GnssVelMode);
 			return 0;
 		}
-
-
-		/*dsf90:速度输入检验*/
 		/*速度上限：200m/s*/
 		if (fabs(GI_pd.gnss_speed) > 200 || GI_pd.vn[2] > 20)
 		{
-			//gilc_log("libgilc --- raw vel error: week %d, sec %f, vel %f %f %f m/s, speed %f m/s\r\n",
-			//	pIlcData->week, pIlcData->gpstimetarge,
-			//	pIlcData->vn[0], pIlcData->vn[1], pIlcData->vn[2], pIlcData->gnss_speed);
-			//return GILC_RET__ERR_RAW_VEL_PARAM;
+			GINS_log("GINS_RAW_ERROR raw gnss_vel exceed 200m/s: week %d, sec %f, vel %f %f %f m/s, speed %f m/s\r\n",
+				GI_pd.week, GI_pd.gpstimetarge,
+				GI_pd.vn[0], GI_pd.vn[1], GI_pd.vn[2], GI_pd.gnss_speed);
+			return 0;
 		}
 
 		double vel_std_enu[3] = { 0 };
 		double pos_std_enu[3] = { 0 };
-		double heading2_std = pRaw->gnssdata.std_heading2;
-		if (1)
+		double heading2_std= pRaw->gnssdata.std_heading2;
+		if (GI_cfg.GnssVelStdUse)
 		{
 			double vel_std_ecef[3] = { 0 };
 			vel_std_ecef[0] = pRaw->gnssdata.std_vx_ecef;
@@ -281,20 +328,19 @@ int  GINS_YM::GINS_Rawdata_Quality(GINS_raw_t *pRaw)
 		}
 		else
 		{
-			if (pRaw->gnssdata.stat == 4)
+			switch (pRaw->gnssdata.stat)
 			{
+			case 4:
 				vel_std_enu[0] = 0.05;	vel_std_enu[1] = 0.05;	vel_std_enu[2] = 0.1;
-			}
-			else if (pRaw->gnssdata.stat == 5)
-			{
+			case 5:
 				vel_std_enu[0] = 0.1;		vel_std_enu[1] = 0.1;		vel_std_enu[2] = 0.2;
-			}
-			else
-			{
+			case 1:
+				vel_std_enu[0] = 0.2;		vel_std_enu[1] = 0.2;		vel_std_enu[2] = 0.4;
+			case 6:
 				vel_std_enu[0] = 0.2;		vel_std_enu[1] = 0.2;		vel_std_enu[2] = 0.4;
 			}
 		}
-		if (1)
+		if (GI_cfg.GnssPosStdUse)
 		{
 			pos_std_enu[0] = pRaw->gnssdata.std_lat;
 			pos_std_enu[1] = pRaw->gnssdata.std_lon;
@@ -302,60 +348,55 @@ int  GINS_YM::GINS_Rawdata_Quality(GINS_raw_t *pRaw)
 		}
 		else
 		{
-			if (pRaw->gnssdata.stat == 4)
+			switch (pRaw->gnssdata.stat)
 			{
+			case 4:
 				pos_std_enu[0] = 0.05;	pos_std_enu[1] = 0.05;	pos_std_enu[2] = 0.1;
-			}
-			else if (pRaw->gnssdata.stat == 5)
-			{
+			case 5:
 				pos_std_enu[0] = 1;		pos_std_enu[1] = 1;		pos_std_enu[2] = 2;
-			}
-			else
-			{
+			case 1:
+				pos_std_enu[0] = 2;		pos_std_enu[1] = 2;		pos_std_enu[2] = 4;
+			case 6:
 				pos_std_enu[0] = 2;		pos_std_enu[1] = 2;		pos_std_enu[2] = 4;
 			}
 		}
-
-		/*dsf90:标准差输入检验*/
 		/*速度标准差下限：0.01m/s；位置标准差下限：0.01*/
 		for (int i = 0; i < 3; i++)
 		{
 			if (vel_std_enu[i] == 0)
 			{
-				printf("libgilc --- raw vel std error: week %d, sec %f, vel std %f %f %f m/s\r\n",
+				GINS_log("GINS_RAW_ERROR raw gnss_vel std =0: week %d, sec %f, vel std %f %f %f m/s\r\n",
 					GI_pd.week, GI_pd.gpstimetarge,
 					vel_std_enu[0], vel_std_enu[1], vel_std_enu[2]);
-				//return GILC_RET__ERR_RAW_VEL_STD_PARAM;
+				return 0;
 			}
 			else if (vel_std_enu[i] < 0.01)
 				vel_std_enu[i] = 0.01;
 
 			if (pos_std_enu[i] == 0)
 			{
-				printf("libgilc --- raw pos std error: week %d, sec %f, pos std %f %f %f m\r\n",
+				GINS_log("GINS_RAW_ERROR raw gnss_pos std =0: week %d, sec %f, pos std %f %f %f m\r\n",
 					GI_pd.week, GI_pd.gpstimetarge,
 					pos_std_enu[0], pos_std_enu[1], pos_std_enu[2]);
-				//return GILC_RET__ERR_RAW_POS_STD_PARAM;
+				return 0;
 			}
 			else if (pos_std_enu[i] < 0.01)
 				pos_std_enu[i] = 0.01;
 		}
 		/*航向标准差下限：0.2deg*/
-		if (heading2_std && heading2_std <= 0.5)
+		if (heading2_std && heading2_std <= 0.001)
 		{
-			//gilc_log("libgilc --- raw heading2 std error: week %d, sec %f, heading2 std %lf deg\r\n",
-			//pIlcData->week, pIlcData->gpstimetarge,	heading2_std);
-			//return GILC_RET__ERR_RAW_PARAM;
+			GINS_log("GINS_RAW_ERROR raw heading2 std <=0.5: week %d, sec %f, heading2 std %lf deg\r\n",
+				GI_pd.week, GI_pd.gpstimetarge,	heading2_std);
 			heading2_std = 0.5;
+			return 0;
 		}
-
 		GI_pd.GPV_RK[0 * 6 + 0] = SQ(vel_std_enu[0]);
 		GI_pd.GPV_RK[1 * 6 + 1] = SQ(vel_std_enu[1]);
 		GI_pd.GPV_RK[2 * 6 + 2] = SQ(vel_std_enu[2]);
 		GI_pd.GPV_RK[3 * 6 + 3] = SQ(pos_std_enu[0] / RE);
 		GI_pd.GPV_RK[4 * 6 + 4] = SQ(pos_std_enu[1] / RE);
 		GI_pd.GPV_RK[5 * 6 + 5] = SQ(pos_std_enu[2]);
-
 		GI_pd.stat = pRaw->gnssdata.stat;
 		GI_pd.hdop = pRaw->gnssdata.hdop;
 		GI_pd.age = pRaw->gnssdata.age;
@@ -363,17 +404,9 @@ int  GINS_YM::GINS_Rawdata_Quality(GINS_raw_t *pRaw)
 		GI_pd.nsused = pRaw->gnssdata.nsused;
 		GI_pd.snsum = pRaw->gnssdata.snsum;
 		GI_pd.heading2 = pRaw->gnssdata.heading2;
+		GI_pd.heading2_std = heading2_std;
 		DEG_0_360(GI_pd.heading2);
 		GI_pd.GA_RK[2] = SQ(heading2_std*D2R);
-
-		/*固定解，方差大小检查*/
-		//if (GI_pd.stat == 4)
-		//{/*定位精度不达标，修改定位状态为浮动*/
-		//	if (pos_std_enu[0] > 0.1 || pos_std_enu[1] > 0.1 || pos_std_enu[2] > 0.2)
-		//	{
-		//		GI_pd.stat = 5;
-		//	}
-		//}
 		if (GI_pd.stat)
 			GI_pd.bGPSavail = true;
 	}
@@ -384,6 +417,8 @@ int  GINS_YM::GINS_Rawdata_Quality(GINS_raw_t *pRaw)
 void GINS_YM::GINS_ekf_data_ready(GINS_cfg_double *GI_cfg)
 {
 
+	memset(GI_pro.kf.kf_Q_init, 0, sizeof(GI_pro.kf.kf_Q_init));
+	memset(GI_pro.kf.kf_P_init, 0, sizeof(GI_pro.kf.kf_P_init));
 
 	double kf_P_init_gyobias[3] = { 0,0,0 };
 	double kf_P_init_accbias[3] = { 0,0,0 };
@@ -395,41 +430,44 @@ void GINS_YM::GINS_ekf_data_ready(GINS_cfg_double *GI_cfg)
 	double kf_Q_init_gyobias[3] = { 0.0 };
 	double kf_Q_init_accbias[3] = { 0.0 };
 
-	kf_Q_init_att[0] = GI_cfg->gyro_std[0];
-	kf_Q_init_att[1] = GI_cfg->gyro_std[1];
-	kf_Q_init_att[2] = GI_cfg->gyro_std[2];
-
-	kf_Q_init_vel[0] = GI_cfg->accle_std[0];
-	kf_Q_init_vel[1] = GI_cfg->accle_std[1];
-	kf_Q_init_vel[2] = GI_cfg->accle_std[2];
 
 
-	kf_Q_init_gyobias[0] = GI_cfg->gyro_walk[0];
-	kf_Q_init_gyobias[1] = GI_cfg->gyro_walk[1];
-	kf_Q_init_gyobias[2] = GI_cfg->gyro_walk[2];
+	kf_Q_init_pos[0] = 1 / sqrt(3600) / RE;
+	kf_Q_init_pos[1] = 1 / sqrt(3600) / RE;
+	kf_Q_init_pos[2] = 1 / sqrt(3600);
 
-	kf_Q_init_accbias[0] = GI_cfg->vel_walk[0];
-	kf_Q_init_accbias[1] = GI_cfg->vel_walk[1];
-	kf_Q_init_accbias[2] = GI_cfg->vel_walk[2];
+
+	kf_Q_init_att[0] = GI_cfg->gyro_std[0] *D2R;
+	kf_Q_init_att[1] = GI_cfg->gyro_std[1] * D2R;
+	kf_Q_init_att[2] = GI_cfg->gyro_std[2] * D2R;
+
+	kf_Q_init_vel[0] = GI_cfg->accle_std[0] *glv_g;
+	kf_Q_init_vel[1] = GI_cfg->accle_std[1] * glv_g;
+	kf_Q_init_vel[2] = GI_cfg->accle_std[2] * glv_g;
+
+
+	kf_Q_init_gyobias[0] = GI_cfg->gyro_walk[0] *D2R / sqrt(3600);
+	kf_Q_init_gyobias[1] = GI_cfg->gyro_walk[1] * D2R / sqrt(3600);
+	kf_Q_init_gyobias[2] = GI_cfg->gyro_walk[2] * D2R / sqrt(3600);
+
+	kf_Q_init_accbias[0] = GI_cfg->vel_walk[0] *1.0e-6*glv_g/sqrt(3600);
+	kf_Q_init_accbias[1] = GI_cfg->vel_walk[1] * 1.0e-6*glv_g / sqrt(3600);
+	kf_Q_init_accbias[2] = GI_cfg->vel_walk[2] * 1.0e-6*glv_g / sqrt(3600);
+
+
 	/*Q INIT*/
 	for (int i = 0; i < 3; i++)
 	{
-		GI_pro.kf.gyro_bias_walk[i] = GI_cfg->gyro_walk[i];
-		GI_pro.kf.acc_bias_walk[i] = GI_cfg->vel_walk[i];
-		GI_pro.kf.acc_std[i] = GI_cfg->accle_std[i];
-		GI_pro.kf.gyro_std[i] = GI_cfg->gyro_std[i];
 		GI_pro.kf.kf_Q_init[i + 0] = (kf_Q_init_att[i]);
 		GI_pro.kf.kf_Q_init[i + 3] = (kf_Q_init_vel[i]);
 		GI_pro.kf.kf_Q_init[i + 6] = (kf_Q_init_pos[i]);
 		GI_pro.kf.kf_Q_init[i + 9] = (kf_Q_init_gyobias[i]);
 		GI_pro.kf.kf_Q_init[i + 12] = (kf_Q_init_accbias[i]);
 	}
-
-
 	double davp[9] = { 0 };
-	davp[0] = 2;
-	davp[1] = 2;
-	davp[2] = 5;
+	davp[0] = 2*D2R;
+	davp[1] = 2 * D2R;
+	davp[2] = 5 * D2R;
 	davp[3] = sqrt(GI_pd.GPV_RK[0]) * 3;
 	davp[4] = sqrt(GI_pd.GPV_RK[7]) * 3;
 	davp[5] = sqrt(GI_pd.GPV_RK[14]) * 3;
@@ -447,6 +485,12 @@ void GINS_YM::GINS_ekf_data_ready(GINS_cfg_double *GI_cfg)
 		GI_pro.kf.kf_P_init[i + 15] = (kf_P_init_installerr[i]);
 		GI_pro.kf.kf_P_init[i + 18] = (kf_P_init_lever[i]);
 	}
+	GINS_log("kf_P_att:%f,%f,%f\n", davp[0], davp[1], davp[2]);
+	GINS_log("kf_P_vel:%f,%f,%f\n", davp[3], davp[4], davp[5]);
+	GINS_log("kf_P_pos:%f,%f,%f\n", davp[6], davp[7], davp[8]);
+
+
+
 }
 
 
@@ -457,30 +501,48 @@ int GINS_YM::GINS_Init(GINS_cfg_t* cfgdata)
 	memset(&GI_pro, 0, sizeof(GI_pro));
 	stRaw = { 0 };
 	stRaw_tmp = { 0 };
-	//GI_pro = { 0 };
+	bool File_flag = false;
+
+	time_t tt = time(NULL);//这句返回的只是一个时间cuo
+	tm* t = localtime(&tt);
+
 	for (int i = 0;i < 3;i++)
 	{
 		GI_cfg.accle_std[i] = cfgdata->accle_std[i];
 		GI_cfg.gyro_std[i] = cfgdata->gyro_std[i];
 		GI_cfg.vel_walk[i] = cfgdata->vel_walk[i];
 		GI_cfg.gyro_walk[i] = cfgdata->gyro_walk[i];
+		dGnss2OutPointLever[i] = 0;
 		eb[i] = 0;
 		db[i] = 0;
+		gyro_bias[i] = 0;
 	}
+	GI_cfg.GnssPosMode = cfgdata->GnssPosStdUse;
+	GI_cfg.GnssVelMode = cfgdata->GnssVelMode;
+	GI_cfg.GnssPosStdUse = cfgdata->GnssPosStdUse;
+	GI_cfg.GnssVelStdUse = cfgdata->GnssVelStdUse;
+	imu_raw_cnt = 0;
 	bAlign = false;
-
-	GI_pro.ins.eb[3] = { 0 };
-	GI_pro.ins.ab[3] = { 0 };
-
-	GI_pro.ins.att[3] = { 0 };
-	GI_pro.ins.pos[3] = { 0 };
-	GI_pro.ins.vn[3] = { 0 };
-
 	GI_pro.kf_init = false;
-	GI_pro.kf.ROW = 21;
-	GI_pro.kf.COL = 15;
-
+	bias_init = false;
 	GI_align.init();
+	GI_pro.Init();
+	GI_pd.Init();
+	if (!File_flag)
+	{
+		File_open();
+		File_flag = true;
+	}
+	GINS_log("GINS_init:%d-%02d-%02d %02d:%02d:%02d\n", t->tm_year + 1900,
+		t->tm_mon + 1,
+		t->tm_mday,
+		t->tm_hour,
+		t->tm_min,
+		t->tm_sec);
+	GINS_log("GYRO_std:%f,%f,%f\n", cfgdata->gyro_std[0], cfgdata->gyro_std[1], cfgdata->gyro_std[2]);
+	GINS_log("ACC_std:%f,%f,%f\n", cfgdata->accle_std[0], cfgdata->accle_std[1], cfgdata->accle_std[2]);
+	GINS_log("GYRO_walk:%f,%f,%f\n", cfgdata->gyro_walk[0], cfgdata->gyro_walk[1], cfgdata->gyro_walk[2]);
+	GINS_log("ACC_walk:%f,%f,%f\n", cfgdata->vel_walk[0], cfgdata->vel_walk[1], cfgdata->vel_walk[2]);
 	//sprintf(cGilcInitMsg, "GILC Init ver: %s %s\r\n", GILC_SOFT_VER, GILC_SOFT_DATE);
 	//sprintf(cGilcInitMsg + strlen(cGilcInitMsg), "GILC NUMX %d, NUMV %d\r\n", NUMX, NUMV);
 
@@ -610,34 +672,51 @@ int GINS_YM::GINS_Init(GINS_cfg_t* cfgdata)
 	return 0;
 }
 
+void GINS_Process::correctSideslip(void)
+{
+	/*dsf90:位置结果约束（限位）*/
+	double dpos_b[3] = { 0 };
+	int pro_flag = 0;
 
+	if (fabs(pospre[0])<1e-6)
+	{
+		Mat_equal(ins.pos, 3, 1, pospre);
+	}
+	else
+	{
+		difpos_b(pospre, ins.pos, ins.att_car, dpos_b);
+
+		/*侧向位移修正*/
+		double dpos_x = sin(ins.wib[2] * dt / 2) * (ins.vm_car[1] * dt) * 2;//侧向位移增量 20为经验值
+		if (fabs(dpos_b[0]) > fabs(dpos_x) && bGnssLost)
+		{
+			dpos_b[0] = dpos_x;
+			pro_flag = 1;
+		}
+#if 0	
+		/*高程位移修正*/
+		//double dpos_z = sin(ins.wib[0] * dt / 2) * (ins.vm_car[1] * dt) * 500;
+		double dpos_z = tan(ins.wib[0] * dt / 2) * dpos_b[1] * 500;
+		if (fabs(dpos_b[2]) > fabs(dpos_z) && bGnssLost)
+		{
+			dpos_b[2] = dpos_z;
+			pro_flag = 1;
+		}
+#endif
+		if (pro_flag)
+			difpos(pospre, ins.pos, ins.att_car, dpos_b);
+		Mat_equal(ins.pos, 3, 1, pospre);
+	}
+}
 
 int GINS_Process::GINS_P2(Process_Data ilcd)
 {
-
 	int ret = 0;
 	//滤波器初始化
 	if (!kf_init)
 	{
-		//for (int i = 0; i<3; i++)
-		//{
-		//	kf.GB[i] = para.GB[i];
-		//	kf.AB[i] = para.AB[i];
-		//	kf.GW[i] = para.GW[i];
-		//	kf.AW[i] = para.AW[i];
-		//	kf.GS[i] = para.GS[i];
-		//	kf.AS[i] = para.AS[i];
-		//}
-		//vector<double>temppxk;
-		//for (int i = 0;i<kf.ROW;i++)
-		//{
-		//	temppxk.push_back(sqrt(kf.Pxk[i*kf.ROW + i]));
-		//}
 		kf.GINS_KF_malloc(NUMX,NUMV,&kf_tmp);//分配内存空间
 		kf.kfinit();
-
-		//prePxk.push_back(temppxk);
-
 		kf_init = true;
 	}
 
@@ -646,10 +725,10 @@ int GINS_Process::GINS_P2(Process_Data ilcd)
 		dt = ilcd.imutimetarge - tpre;		//需要准确的时间戳
 		dt_total += dt;
 		tpre = ilcd.imutimetarge;
-		ins.INS_process(ilcd,dt);
-		//ins.Lever(); //臂杆和时间延迟补偿
-		kf.upPhi(ins, dt);
-		kf.TUpdate(dt);  
+		ins.INS_process(ilcd,dt);//INS推算
+		ins.Lever(); //臂杆和时间延迟补偿
+		kf.upPhi(ins, dt);//状态转移矩阵更新
+		kf.TUpdate(dt);//时间更新
 		inspre = ins;
 	}
 	//判断是否有PPS
@@ -878,10 +957,75 @@ bool GINS_Align::CalAtt2(Process_Data& ilcd)
 
 void GINS_Process::Init(void)
 {
-
+	ins = { 0 };
+	inspre = { 0 };
+	inspre_forPPS = { 0 };
+	inspre_forStatic = { 0 };
+	kf_init = false;
+	bAlign = false;
+	bStatic = false;
+	bTurn = 1;
+	busegnssvn = false;
+	bgnssskip = false;
+	bGnssLost=false;
+	bStaticpre = false;
+	bGnssLostNum=0;
+	bGnssNum = 0;
 }
 
+void GINS_Process::GnssIntegrity(Process_Data &ilcd, double dheading, double dvn[3])
+{
+	if (ilcd.bGPSavail)	//GNSS
+	{
+		//根据gnss速度与速度差来判断GNSS速度是否可用
+		busegnssvn = busegnssvel_car(ilcd.vn, dvn, dheading);//busegnssvn=1速度可用
+		//判断GNSS跳点
+		gpos_t gpcur;
+		equalgpos(&gpcur, &ilcd);
+		if (pregpos.size()<10)
+		{
+			pregpos.push_back(gpcur);
+		}
+		else
+		{
+			bgnssskip = bgnssskip_car(pregpos, ins.vn, c);
+			pregpos.clear();
+			//pregpos.erase(pregpos.begin());
+		}
 
+	}
+	if (ilcd.bGPSavail)	//GNSS
+	{
+		bGnssTimeOut = 0;
+		if (bGnssLost)
+		{
+			printf("%02d:%02d:%06.3f ----gnss get-------%f\r\n", int(ilcd.ep[3]), int(ilcd.ep[4]), ilcd.ep[5],ilcd.imutimetarge);
+		}
+		bGnssLost = 0;
+	}
+	else
+	{
+		bGnssTimeOut += dt;
+		if (bGnssTimeOut >= 0.5)
+		{
+			if (!bGnssLost)
+			{
+				printf("%02d:%02d:%06.3f ----gnss lost-------%f\r\n", int(ilcd.ep[3]), int(ilcd.ep[4]), ilcd.ep[5],ilcd.imutimetarge);
+			}
+			bGnssLost = 1;
+		}
+	}
+	if (bGnssLost)
+	{
+		bGnssLostNum++;
+		bGnssNum = 0;
+	}
+	else
+	{
+		bGnssLostNum = 0;
+		bGnssNum++;
+	}
+}
 
 void GINS_Process::loadPPSSyncInsData(Process_Data &ilcd, GINS_INS &ppsins)
 {
@@ -911,4 +1055,40 @@ void GINS_Process::loadPPSSyncInsData(Process_Data &ilcd, GINS_INS &ppsins)
 		}
 	}
 
+}
+
+void Process_Data::Init(void )
+{
+	gpstimetarge = 0;
+	week = 0;
+	ep[6] = { 0 };
+	pos[3] = { 0 };
+	for (int i = 0;i < 36;i++)
+	{
+		GPV_RK[i] = 0;
+	}
+
+	for (int i = 0;i < 3; i++)
+	{
+		GA_RK[i] = 0;
+		acc_iir[i] = 0;
+		gyo_iir[i] = 0;
+		mag_iir[i] = 0;
+		acc[i] = 0;
+		gyo[i] = 0;
+		mag[i] = 0;
+	}
+	heading2 = 0;
+	heading2_std = 0;
+	imutimetarge = 0;
+	gnss_speed = 0;
+	heading = 0;
+	time = 0;
+	num = 0;
+	temper = 0;
+	lever = 0;
+	bMEMSavail = false;
+	bPPSavail = false;
+	bGPSavail = false;
+	imu_raw_cnt = 0;
 }

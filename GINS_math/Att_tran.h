@@ -9,6 +9,8 @@ void matmul(const char *tr, int n, int k, int m, double alpha,
 	const double *A, const double *B, double beta, double *C);
 void Var_XYZ2BLH(double xyz[3], double Pecef[3], double Penu[3]);
 void ecef2enu(const double *pos, const double *r, double *e); //xyz坐标系向量r转化到enu
+void enu2ecef(const double *pos, const double *e, double *r);
+void ecef2pos(const double *r, double *pos);
 void m2qua_ned(double m[], double q[]);//方向余弦矩阵转四元数ned
 void q2mat_ned(double qua[], double m[]);//四元数转方向余弦矩阵ned
 void m2att_ned(double m[], double a[]);//方向余弦矩阵转欧拉角ned
@@ -29,4 +31,5 @@ void qupdt2(double qnb0[], double rv_ib[], double rv_in[], double qnb1[]);
 
 void difpos_b(double pospre[3], double poscur[3], double att[3], double dpos_b[3]);
 void diffpos(double blhpre[3], double blhcur[3], double denu[3]);
+void difpos(double pospre[3], double poscur[3], double att[3], double dpos_b[3]);
 #endif

@@ -4,7 +4,6 @@
 *  Created on: 7.14, 2019
 *      Author: yangmin
 */
-
 #ifndef GILC_PROCESS_LIB_H
 #define GILC_PROCESS_LIB_H
 #ifdef __cplusplus
@@ -70,8 +69,6 @@ typedef struct GINS_cfg_double {
 	bool bFilePathCfgUse;      /*启用文件路径      自定义位置*/
 	bool bOutFileSaveClose;    /*关闭结算结果保存*/
 	bool bTmpFileSaveClose;    /*关闭结果文件保存*/
-
-							   /*IMU PARAM*/
 	int    imu_period_ms;
 	double gyro_std[3];
 	double accle_std[3];
@@ -84,18 +81,11 @@ typedef struct GINS_cfg_double {
 	bool bStdCfgUse;           /*启用IMU噪声       自定义配置*/
 	bool bWalkCfgUse;          /*启用IMU随机游走   自定义配置*/
 	bool bRowScaleCfgUse;      /*启用IMU顺序、比例 自定义配置*/
-
-							   /*GNSS PARAM*/
-	bool bGnssPosStdUse;       /*启用GNSS位置噪声观测量*/
-	bool bGnssVelStdUse;       /*启用GNSS速度噪声观测量*/
-	//gilc_gnssVel_mode_e eGnssVelMode;          /*0:ecef 1:enu 2:speed+heading*/
-	//gilc_gnssPos_mode_e eGnssPosMode;
-	int GnssVelMode;
-	/*CALIBRATE PARAM*/
-	//ekf_X_t stEkfX_Init;
-	bool bEkfXUse;             /*启用EKF X 初始化配置*/
-
-							   /*INSTALL/CAR PARAM*/
+	bool GnssPosStdUse;       /*1:use   0:not use*/
+	bool GnssVelStdUse;       /*1:use   0:not use*/
+	int GnssVelMode;          /*1:ecef  2:enu*/
+	int GnssPosMode;          /*1:deg   2:rad*/
+	bool bEkfXUse;             /*启用EKF X 初始化配置*/	
 	float fIns2BodyAngle[3];     /*惯导到车辆后轮中心夹角*/
 	float fIns2BodyAngleErr[3];  /*惯导到车辆后轮中心夹角-配置误差*/
 	float fIns2BodyVector[3];    /*惯导到车辆后轮中心矢量*/
@@ -127,8 +117,8 @@ typedef struct GINS_result_double {
 	int    week;
 	/*IMU data*/
 	double acc_car[3];
-	double acc[3];
-	double gyro[3];
+	double acc[3];     //m/s2
+	double gyro[3];    //deg/s
 	/*GINS pos and pos-std*/
 	double lla[3];     //lat/lon/alt -- deg/deg/m
 	double std_lla[3]; //lat/lon/alt -- m/m/m
@@ -144,15 +134,11 @@ typedef struct GINS_result_double {
 	double speed;      //m/s
 	double std_speed;  //m/s
 	double heading;    //deg
-
 	/*GINS falg*/
 	int    bPPSSync;
 	int    car_status;  //0.uninit 1.static 2.direct driver 3.turn right 4.turn left 5. back
 	int    gilc_status;      //gilc_ret_e定义  0.uninit 1.resolving 2.convergence 3.ins  
 }GINS_result_t;
-
-
-
 //算法接口
 int GINS_init(GINS_cfg_t* cfgdata);
 int GINS_PROCESS_Lib(GINS_raw_t* pstRaw, GINS_result_t* pstOut);

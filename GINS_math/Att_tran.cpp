@@ -390,3 +390,40 @@ void difpos_b(double pospre[3], double poscur[3], double att[3], double dpos_b[3
 	Mat_mul(Cbn, denu, 3, 3, 1, dpos_b);
 
 }
+
+void difpos(double pospre[3], double poscur[3], double att[3], double dpos_b[3])
+{
+	double rr0[3] = { 0.0 }, rr1[3] = { 0.0 }, drr[3] = { 0.0 }, denu[3] = { 0 };;
+
+	double Cnb[9] = { 0 };
+	a2mat(att, Cnb);
+	Mat_mul(Cnb, dpos_b, 3, 3, 1, denu);
+
+	enu2ecef(pospre, denu, drr);
+	pos2ecef(pospre, rr0);
+	Mat_add(rr0, drr, rr1, 3, 1);
+
+	ecef2pos(rr1, poscur);
+}
+
+void enu2ecef(const double *pos, const double *e, double *r)
+{
+	double E[9];
+
+	xyz2enu(pos, E);
+	matmul("TN", 3, 1, 3, 1.0, E, e, 0.0, r);
+}
+void ecef2pos(const double *r, double *pos)
+{
+	double e2 = FE_WGS84*(2.0 - FE_WGS84), r2 = dot(r, r, 2), z, zk, v = RE_WGS84, sinp;
+
+	for (z = r[2], zk = 0.0;fabs(z - zk) >= 1E-4;) {
+		zk = z;
+		sinp = z / sqrt(r2 + z*z);
+		v = RE_WGS84 / sqrt(1.0 - e2*sinp*sinp);
+		z = r[2] + v*e2*sinp;
+	}
+	pos[0] = r2>1E-12 ? atan(z / sqrt(r2)) : (r[2]>0.0 ? PI / 2.0 : -PI / 2.0);
+	pos[1] = r2>1E-12 ? atan2(r[1], r[0]) : 0.0;
+	pos[2] = sqrt(r2 + z*z) - v;
+}

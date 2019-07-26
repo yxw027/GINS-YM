@@ -175,7 +175,7 @@ extern void *__ml_zero(int size)
 {
 	void *p = malloc(size);
 	if (p == NULL) {
-		//gilc_log("not malloc for val\n");
+		printf("not malloc for val\n");
 	}
 	memset(p, 0, size);
 	return p;
