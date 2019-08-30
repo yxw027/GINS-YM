@@ -115,11 +115,9 @@ int main()
 	stCfg.fIns2BodyAngle[0] = CFG_fIns2BodyAngle_X;
 	stCfg.fIns2BodyAngle[1] = CFG_fIns2BodyAngle_Y;
 	stCfg.fIns2BodyAngle[2] = CFG_fIns2BodyAngle_Z;
-	stCfg.fIns2BodyAngleErr[0] = CFG_fIns2BodyAngleErr_X;
-	stCfg.fIns2BodyAngleErr[1] = CFG_fIns2BodyAngleErr_Y;
-	stCfg.fIns2BodyAngleErr[2] = CFG_fIns2BodyAngleErr_Z;
 
-	stCfg.GnssPosMode = 1;
+
+	stCfg.GnssPosMode = 2;
 	stCfg.GnssVelMode = 1;
 	stCfg.GnssPosStdUse = 1;
 	stCfg.GnssVelStdUse = 1;

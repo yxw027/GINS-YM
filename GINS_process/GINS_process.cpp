@@ -1,7 +1,37 @@
 #include "GINS_process.h"
 #include "GINS_test.h"
 /*GINS test by ym*/
-
+int GINS_Process::GINS_P2(Process_Data ilcd)
+{
+	int ret = 0;
+	//滤波器初始化
+	if (!kf_init)
+	{
+		kf.GINS_KF_malloc(NUMX, NUMV, &kf_tmp);//分配内存空间
+		kf.kfinit();
+		kf_init = true;
+	}
+	if (ilcd.bMEMSavail)
+	{
+		dt = ilcd.imutimetarge - tpre;//需要准确的时间戳
+		dt_total += dt;
+		tpre = ilcd.imutimetarge;
+		ins.INS_process(ilcd, dt);//INS推算
+		ins.Lever(); //臂杆和时间延迟补偿
+		kf.upPhi(ins, dt);//状态转移矩阵更新
+		kf.TUpdate(dt);//时间更新
+		inspre = ins;
+	}
+	//判断是否有PPS
+	if (ilcd.bPPSavail)
+	{
+		/*保存PPS时刻的ins信息*/
+		inspre_forPPS = ins;
+	}
+	ret = ZUpdate(ilcd);
+	//	updateKfInitStatus(ilcd);
+	return ret;
+}
 int GINS_YM::GINS_data_correct(GINS_raw_t *pRaw)
 {
 	if (pRaw->bGPSavail)
@@ -187,11 +217,10 @@ int  GINS_YM::GINS_Rawdata_Quality(GINS_raw_t *pRaw)
 	{
 		static double IMU_time_pre = 0;
 		GI_pd.imutimetarge = pRaw->imutimetarget;
-		if (GI_pd.imutimetarge - IMU_time_pre > 0.1)//IMU time error
+		if (GI_pd.imutimetarge - IMU_time_pre > 0.12)//IMU time error
 		{
 			GINS_log("GINS_RAW_ERROR imu time error: week %d, sec %f, last %f \r\n",
 				GI_pd.week, GI_pd.imutimetarge, IMU_time_pre);
-			IMU_time_pre = GI_pd.imutimetarge;
 		}
 		IMU_time_pre = GI_pd.imutimetarge;
 		GI_pd.gyo[0] = pRaw->memsdate.gyro[0] * D2R;
@@ -232,7 +261,7 @@ int  GINS_YM::GINS_Rawdata_Quality(GINS_raw_t *pRaw)
 			}
 			else
 			{
-				GINS_log("GINS_RAW_ERROR pps time err %8.6f dTime %dms\r\n", pRaw->imutimetarget, dTime_ms);
+				//GINS_log("GINS_RAW_ERROR pps time err %8.6f dTime %dms\r\n", pRaw->imutimetarget, dTime_ms);
 			}
 		}
 		GI_pd.bMEMSavail = true;
@@ -288,6 +317,11 @@ int  GINS_YM::GINS_Rawdata_Quality(GINS_raw_t *pRaw)
 			vel_ecef[1] = pRaw->gnssdata.vy_ecef;
 			vel_ecef[2] = pRaw->gnssdata.vz_ecef;
 			ecef2enu(GI_pd.pos, vel_ecef, GI_pd.vn);
+#if AP100_I90||GD100
+			GI_pd.vn[0] = vel_ecef[0];
+			GI_pd.vn[1] = vel_ecef[1];
+			GI_pd.vn[2] = vel_ecef[2];
+#endif
 			GI_pd.gnss_speed = sqrt(pow(GI_pd.vn[0], 2) + pow(GI_pd.vn[1], 2));
 			GI_pd.heading = atan2(GI_pd.vn[0], GI_pd.vn[1])*R2D;
 			if (GI_pd.heading <0)
@@ -338,6 +372,8 @@ int  GINS_YM::GINS_Rawdata_Quality(GINS_raw_t *pRaw)
 				vel_std_enu[0] = 0.2;		vel_std_enu[1] = 0.2;		vel_std_enu[2] = 0.4;
 			case 6:
 				vel_std_enu[0] = 0.2;		vel_std_enu[1] = 0.2;		vel_std_enu[2] = 0.4;
+			case 0:
+				vel_std_enu[0] = 0.2;		vel_std_enu[1] = 0.2;		vel_std_enu[2] = 0.4;
 			}
 		}
 		if (GI_cfg.GnssPosStdUse)
@@ -357,6 +393,8 @@ int  GINS_YM::GINS_Rawdata_Quality(GINS_raw_t *pRaw)
 			case 1:
 				pos_std_enu[0] = 2;		pos_std_enu[1] = 2;		pos_std_enu[2] = 4;
 			case 6:
+				pos_std_enu[0] = 2;		pos_std_enu[1] = 2;		pos_std_enu[2] = 4;
+			case 0:
 				pos_std_enu[0] = 2;		pos_std_enu[1] = 2;		pos_std_enu[2] = 4;
 			}
 		}
@@ -502,7 +540,8 @@ int GINS_YM::GINS_Init(GINS_cfg_t* cfgdata)
 	stRaw = { 0 };
 	stRaw_tmp = { 0 };
 	bool File_flag = false;
-
+	Rst_speed_pre = 0;
+	static_num = 0;
 	time_t tt = time(NULL);//这句返回的只是一个时间cuo
 	tm* t = localtime(&tt);
 
@@ -517,7 +556,7 @@ int GINS_YM::GINS_Init(GINS_cfg_t* cfgdata)
 		db[i] = 0;
 		gyro_bias[i] = 0;
 	}
-	GI_cfg.GnssPosMode = cfgdata->GnssPosStdUse;
+	GI_cfg.GnssPosMode = cfgdata->GnssPosMode;
 	GI_cfg.GnssVelMode = cfgdata->GnssVelMode;
 	GI_cfg.GnssPosStdUse = cfgdata->GnssPosStdUse;
 	GI_cfg.GnssVelStdUse = cfgdata->GnssVelStdUse;
@@ -543,132 +582,6 @@ int GINS_YM::GINS_Init(GINS_cfg_t* cfgdata)
 	GINS_log("ACC_std:%f,%f,%f\n", cfgdata->accle_std[0], cfgdata->accle_std[1], cfgdata->accle_std[2]);
 	GINS_log("GYRO_walk:%f,%f,%f\n", cfgdata->gyro_walk[0], cfgdata->gyro_walk[1], cfgdata->gyro_walk[2]);
 	GINS_log("ACC_walk:%f,%f,%f\n", cfgdata->vel_walk[0], cfgdata->vel_walk[1], cfgdata->vel_walk[2]);
-	//sprintf(cGilcInitMsg, "GILC Init ver: %s %s\r\n", GILC_SOFT_VER, GILC_SOFT_DATE);
-	//sprintf(cGilcInitMsg + strlen(cGilcInitMsg), "GILC NUMX %d, NUMV %d\r\n", NUMX, NUMV);
-
-	//raw_cnt = 0;
-	//dbg_cnt = 0;
-	//rst_cnt = 0;
-
-	//GetGPS = false;
-	//bAlign = false;
-	////gilc_log("init-4\n");
-	//dInstallAttCfg[0] = s_cfgdata.fIns2BodyAngle[0] * D2R;
-	//dInstallAttCfg[1] = s_cfgdata.fIns2BodyAngle[1] * D2R;
-	//dInstallAttCfg[2] = s_cfgdata.fIns2BodyAngle[2] * D2R;
-	//a2mat(dInstallAttCfg, dInstallMat);
-
-	//dIns2BodyLever[0] = s_cfgdata.fIns2BodyVector[0];
-	//dIns2BodyLever[1] = s_cfgdata.fIns2BodyVector[1];
-	//dIns2BodyLever[2] = s_cfgdata.fIns2BodyVector[2];
-	////gilc_log("init-5\n");
-	//if ((int)(s_cfgdata.fWheelDistance[0] * 1000))
-	//	InitParam.dWheelTrack = s_cfgdata.fWheelDistance[0];
-	//else
-	//	InitParam.dWheelTrack = 1.6;
-
-	//if ((int)(s_cfgdata.fWheelDistance[1] * 1000))
-	//	InitParam.dWheelBase = s_cfgdata.fWheelDistance[1];
-	//else
-	//	InitParam.dWheelBase = 2.7;
-
-	//if (s_cfgdata.imu_period_ms)
-	//	InitParam.iImuPeriod_ms = s_cfgdata.imu_period_ms;
-
-	//switch (s_cfgdata.iWorkMode)
-	//{
-	//case GILC_WORK_MODE__DEFAULT:
-	//case GILC_WORK_MODE__CAR_NORMAL:
-	//case GILC_WORK_MODE__TRAIN:
-	//case GILC_WORK_MODE__SHIP:
-	//case GILC_WORK_MODE__PLANE:
-	//	InitParam.dGnssVerMin_ForInit = 0.2;
-	//	InitParam.dPpsTimeErrMax_ms = 20;
-	//	InitParam.dInstallErrStdMax_ForInit = 0.02;
-	//	//#if AP100_ADI16445
-	//	//			InitParam.dInstallErrStdMax_ForInit = 0.8;
-	//	//#endif
-	//	InitParam.dKfInitP_AccBais = 0.0001;
-	//	InitParam.dKfInitP_GyroBais = 0.001;
-	//	InitParam.dKfInitP_InstallErr = 0.05*D2R;
-	//	InitParam.dKfInitP_Lever = 0.01;
-	//	InitParam.dKfInitP_TimeDelay = 0.001;
-
-	//	InitParam.dKfInitP_OdoKd = 0.05;
-	//	InitParam.dKfInitP_OdoKwh = 0.1;
-	//	InitParam.dKfInitP_OdoBwh = 0.5;
-	//	InitParam.dKfInitP_OdoWh = 0.5;
-	//	InitParam.dKfInitP_DualYaw = 0.1;
-	//	InitParam.dKfInitP_OdoVel = 0.02;
-	//	InitParam.dKfInitP_OdoHeading = 0.1;
-	//	sprintf(cGilcInitMsg + strlen(cGilcInitMsg), "GILC Work Mode1 %d\r\n", s_cfgdata.iWorkMode);
-	//	break;
-	//case GILC_WORK_MODE__CAR_SLOW:
-	//case GILC_WORK_MODE__TRACTOR:
-	//	InitParam.dGnssVerMin_ForInit = 0.3;
-	//	InitParam.dPpsTimeErrMax_ms = 50;
-	//	InitParam.dInstallErrStdMax_ForInit = 0.01;
-	//	InitParam.dKfInitP_AccBais = 0.005;
-	//	InitParam.dKfInitP_GyroBais = 0.5;
-	//	InitParam.dKfInitP_InstallErr = 0.002;
-	//	InitParam.dKfInitP_Lever = 0.005;
-	//	InitParam.dKfInitP_TimeDelay = 0.005;
-
-	//	InitParam.dKfInitP_OdoKd = 0.05;
-	//	InitParam.dKfInitP_OdoKwh = 0.1;
-	//	InitParam.dKfInitP_OdoBwh = 0.5;
-	//	InitParam.dKfInitP_OdoWh = 0.5;
-	//	InitParam.dKfInitP_DualYaw = 0.1;
-	//	InitParam.dKfInitP_OdoVel = 0.02;
-	//	InitParam.dKfInitP_OdoHeading = 0.1;
-	//	sprintf(cGilcInitMsg + strlen(cGilcInitMsg), "GILC Work Mode2 %d\r\n", s_cfgdata.iWorkMode);
-	//	break;
-	//default:
-	//	gilc_log("Unsupport work mode %d\r\n", s_cfgdata.iWorkMode);
-	//	return -1;
-	//}
-	////gilc_log("init-6\n");
-	//sprintf(cGilcInitMsg + strlen(cGilcInitMsg), "GILC cfg.bFilePathCfgUse      %d\r\n", cfgdata->bFilePathCfgUse);
-	//sprintf(cGilcInitMsg + strlen(cGilcInitMsg), "GILC cfg.bOutFileSaveClose    %d\r\n", cfgdata->bOutFileSaveClose);
-	//sprintf(cGilcInitMsg + strlen(cGilcInitMsg), "GILC cfg.bTmpFileSaveClose    %d\r\n", cfgdata->bTmpFileSaveClose);
-	//if (cfgdata->bFilePathCfgUse)
-	//{
-	//	sprintf(cGilcInitMsg + strlen(cGilcInitMsg), "GILC cfg.debug_outfile_path   %s\r\n", cfgdata->debug_outfile_path);
-	//	sprintf(cGilcInitMsg + strlen(cGilcInitMsg), "GILC cfg.debug_tmpfile_path   %s\r\n", cfgdata->debug_tmpfile_path);
-	//}
-	//sprintf(cGilcInitMsg + strlen(cGilcInitMsg), "GILC cfg.bStdCfgUse           %d\r\n", cfgdata->bStdCfgUse);
-	//if (cfgdata->bStdCfgUse)
-	//{
-	//	sprintf(cGilcInitMsg + strlen(cGilcInitMsg), "GILC cfg.gyro_std             %lf %lf %lf\r\n", cfgdata->gyro_std[0], cfgdata->gyro_std[1], cfgdata->gyro_std[2]);
-	//	sprintf(cGilcInitMsg + strlen(cGilcInitMsg), "GILC cfg.accle_std            %lf %lf %lf\r\n", cfgdata->accle_std[0], cfgdata->accle_std[1], cfgdata->accle_std[2]);
-	//}
-	//sprintf(cGilcInitMsg + strlen(cGilcInitMsg), "GILC cfg.bWalkCfgUse          %d\r\n", cfgdata->bWalkCfgUse);
-	//if (cfgdata->bWalkCfgUse)
-	//{
-	//	sprintf(cGilcInitMsg + strlen(cGilcInitMsg), "GILC cfg.gyro_walk            %lf %lf %lf\r\n", cfgdata->gyro_walk[0], cfgdata->gyro_walk[1], cfgdata->gyro_walk[2]);
-	//	sprintf(cGilcInitMsg + strlen(cGilcInitMsg), "GILC cfg.vel_walk             %lf %lf %lf\r\n", cfgdata->vel_walk[0], cfgdata->vel_walk[1], cfgdata->vel_walk[2]);
-	//}
-	//sprintf(cGilcInitMsg + strlen(cGilcInitMsg), "GILC cfg.bRowScaleCfgUse      %d\r\n", cfgdata->bRowScaleCfgUse);
-	//if (cfgdata->bRowScaleCfgUse)
-	//{
-	//	sprintf(cGilcInitMsg + strlen(cGilcInitMsg), "GILC cfg.gyro_row             %d %d %d\r\n", cfgdata->gyro_row[0], cfgdata->gyro_row[1], cfgdata->gyro_row[2]);
-	//	sprintf(cGilcInitMsg + strlen(cGilcInitMsg), "GILC cfg.acc_row              %d %d %d\r\n", cfgdata->acc_row[0], cfgdata->acc_row[1], cfgdata->acc_row[2]);
-	//	sprintf(cGilcInitMsg + strlen(cGilcInitMsg), "GILC cfg.gyro_scale           %lf %lf %lf\r\n", cfgdata->gyro_scale[0], cfgdata->gyro_scale[1], cfgdata->gyro_scale[2]);
-	//	sprintf(cGilcInitMsg + strlen(cGilcInitMsg), "GILC cfg.acc_scale            %lf %lf %lf\r\n", cfgdata->acc_scale[0], cfgdata->acc_scale[1], cfgdata->acc_scale[2]);
-	//}
-
-	//sprintf(cGilcInitMsg + strlen(cGilcInitMsg), "GILC cfg.bGnssPosStdUse       %d\r\n", cfgdata->bGnssPosStdUse);
-	//sprintf(cGilcInitMsg + strlen(cGilcInitMsg), "GILC cfg.bGnssVelStdUse       %d\r\n", cfgdata->bGnssVelStdUse);
-	//sprintf(cGilcInitMsg + strlen(cGilcInitMsg), "GILC cfg.eGnssVelMode         %d\r\n", cfgdata->eGnssVelMode);
-	//sprintf(cGilcInitMsg + strlen(cGilcInitMsg), "GILC cfg.eGnssPosMode         %d\r\n", cfgdata->eGnssPosMode);
-	//sprintf(cGilcInitMsg + strlen(cGilcInitMsg), "GILC cfg.iOutReferPoint       %d\r\n", cfgdata->iOutReferPoint);
-	//sprintf(cGilcInitMsg + strlen(cGilcInitMsg), "GILC cfg.debug_level          %d\r\n", cfgdata->debug_level);
-	//sprintf(cGilcInitMsg + strlen(cGilcInitMsg), "GILC cfg.fIns2BodyVector      %lf %lf %lf\r\n", cfgdata->fIns2BodyVector[0], cfgdata->fIns2BodyVector[1], cfgdata->fIns2BodyVector[2]);
-	//sprintf(cGilcInitMsg + strlen(cGilcInitMsg), "GILC cfg.fIns2BodyAngle       %lf %lf %lf\r\n", cfgdata->fIns2BodyAngle[0], cfgdata->fIns2BodyAngle[1], cfgdata->fIns2BodyAngle[2]);
-	//sprintf(cGilcInitMsg + strlen(cGilcInitMsg), "GILC cfg.fIns2GnssVector      %lf %lf %lf\r\n", cfgdata->fIns2GnssVector[0], cfgdata->fIns2GnssVector[1], cfgdata->fIns2GnssVector[2]);
-	//sprintf(cGilcInitMsg + strlen(cGilcInitMsg), "GILC cfg.fIns2GnssAngle       %lf %lf %lf\r\n", cfgdata->fIns2GnssAngle[0], cfgdata->fIns2GnssAngle[1], cfgdata->fIns2GnssAngle[2]);
-	//sprintf(cGilcInitMsg + strlen(cGilcInitMsg), "GILC cfg.fWheelDistance       %lf %lf\r\n", cfgdata->fWheelDistance[0], cfgdata->fWheelDistance[1]);
-	//gilc_log(cGilcInitMsg);
 	return 0;
 }
 
@@ -708,44 +621,6 @@ void GINS_Process::correctSideslip(void)
 		Mat_equal(ins.pos, 3, 1, pospre);
 	}
 }
-
-int GINS_Process::GINS_P2(Process_Data ilcd)
-{
-	int ret = 0;
-	//滤波器初始化
-	if (!kf_init)
-	{
-		kf.GINS_KF_malloc(NUMX,NUMV,&kf_tmp);//分配内存空间
-		kf.kfinit();
-		kf_init = true;
-	}
-
-	if (ilcd.bMEMSavail)
-	{
-		dt = ilcd.imutimetarge - tpre;		//需要准确的时间戳
-		dt_total += dt;
-		tpre = ilcd.imutimetarge;
-		ins.INS_process(ilcd,dt);//INS推算
-		ins.Lever(); //臂杆和时间延迟补偿
-		kf.upPhi(ins, dt);//状态转移矩阵更新
-		kf.TUpdate(dt);//时间更新
-		inspre = ins;
-	}
-	//判断是否有PPS
-	if (ilcd.bPPSavail)
-	{
-		/*保存PPS时刻的ins信息*/
-		inspre_forPPS = ins;
-	}
-	ret = ZUpdate(ilcd);
-
-	//double ins_speed = sqrt(pow(ins.vm_car[0], 2) + pow(ins.vm_car[1], 2));
-	//if (ilcd.bMEMSavail && ins_speed > InitParam.dGnssVerMin_ForInit)
-	//	updateKfInitStatus(ilcd);
-	return ret;
-}
-
-
 
 
 

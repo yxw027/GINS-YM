@@ -387,7 +387,8 @@ public:
 	double dInstallAttCfg[3];
 
 	double dGnss2OutPointLever[3];
-
+	double Rst_speed_pre;
+	int static_num;
 	//GilcProcess(void) {};
 
 	int GINS_Init(GINS_cfg_t* cfgdata);

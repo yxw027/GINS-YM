@@ -172,7 +172,48 @@ int GINS_string_decode(char *buff, GINS_raw_t *pRaw)
 	if (strstr(buff, "GNSS,") || strstr(buff, "GNSS:"))
 	{
 		int num = Str2Array(buff + 5, ",", val);
-		if (num == 20)
+		//printf("num=%d\n", num);
+		if (num == 18)
+		{
+			memset(&pRaw->gnssdata, 0, sizeof(pRaw->gnssdata));
+			pRaw->gnssdata.second = val[0];
+			pRaw->gnssdata.week = (int)val[1];
+			pRaw->gnssdata.lat = val[2];
+			pRaw->gnssdata.lon = val[3];
+			pRaw->gnssdata.alt = val[4];
+			pRaw->gnssdata.vx_ecef = val[5];
+			pRaw->gnssdata.vy_ecef = val[6];
+			pRaw->gnssdata.vz_ecef = val[7];
+			pRaw->gnssdata.std_lat = val[8];
+			pRaw->gnssdata.std_lon = val[9];
+			pRaw->gnssdata.std_alt = val[10];
+			pRaw->gnssdata.std_vx_ecef = val[11];
+			pRaw->gnssdata.std_vy_ecef = val[12];
+			pRaw->gnssdata.std_vz_ecef = val[13];
+			pRaw->gnssdata.stat = (int)val[14];
+#if AP100_I90
+			if ((int)val[14] == 11)
+			{
+				pRaw->gnssdata.stat = 4;
+			}
+			if ((int)val[14] == 6)
+			{
+				pRaw->gnssdata.stat = 5;
+			}
+			if ((int)val[14] == 5)
+			{
+				pRaw->gnssdata.stat = 2;
+			}
+			if ((int)val[14] == 4)
+			{
+				pRaw->gnssdata.stat = 1;
+			}
+#endif
+			pRaw->gnssdata.nsused = (int)val[15];
+			pRaw->gnssdata.hdop = val[16];
+			pRaw->gnssdata.age = val[17];
+		}
+		else if (num == 20)
 		{
 			memset(&pRaw->gnssdata, 0, sizeof(pRaw->gnssdata));
 			pRaw->gnssdata.second = val[0];
@@ -272,7 +313,8 @@ int GINS_string_decode(char *buff, GINS_raw_t *pRaw)
 	else if (strstr(buff, "IMU,"))
 	{
 		int num = Str2Array(buff + 4, ",", val);
-		if (num == 9 || num == 10 || num == 11)
+		//printf("num=%d\n", num);
+		if (num==8||num == 9 || num == 10 || num == 11)
 		{
 			memset(&pRaw->memsdate, 0, sizeof(pRaw->memsdate));
 			pRaw->imutimetarget = val[0];

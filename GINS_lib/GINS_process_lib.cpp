@@ -43,24 +43,30 @@ int GINS_YM::GINS_PROCESS_Lib(GINS_raw_t* pstRaw, GINS_result_t* pstOut)
 	if (GetGPS)
 	{
 /***********************************动静态判断***************************************/
-		//kinalign.bStatic = gipro.bStatic = gipro.detect.DetectStatic_car_dsf(ilcd.ep, ilcd.acc, ilcd.gyo, ilcd.vn, gipro.ins.vm_car, ilcd.bGPSavail, gipro.bGnssLost, ilcd.stat);
-		if (GI_pd.gnss_speed< 0.4) //针对农机版本，车载动静态判断阈值不再使用
+		if (Rst_speed_pre&&Rst_speed_pre < 0.3)
 		{
-			GI_align.bStatic = GI_pro.bStatic = 1;
-			if (imu_raw_cnt % (100) == 0)
-			{
-				GINS_log("******%f in static******\n", GI_pd.imutimetarge);
-			}
+			static_num++;
+		}
+		if (static_num > 10)
+		{
+			GI_align.bStatic = GI_align.bStatic = 1;
+			static_num--;
 		}
 		else
 		{
-			GI_align.bStatic = GI_pro.bStatic = 0;
-			if (imu_raw_cnt % (100) == 0)
+			GI_align.bStatic = GI_align.bStatic = 0;
+		}
+		if (imu_raw_cnt % (100 * 6) == 0)
+		{
+			if (GI_align.bStatic == 1)
 			{
-				GINS_log("******%f out static******\n", GI_pd.imutimetarge);
+				GINS_log("%f ----in static by gilc_speed-------\r\n", GI_pd.imutimetarge);
+			}
+			else
+			{
+				GINS_log("%f ----out static by gilc_speed-------\r\n", GI_pd.imutimetarge);
 			}
 		}
-
 /*********************************陀螺静态零偏计算*************************************/
 	if(!bAlign)
 	{ 
@@ -71,7 +77,7 @@ int GINS_YM::GINS_PROCESS_Lib(GINS_raw_t* pstRaw, GINS_result_t* pstOut)
 			{
 				for (int i = 0;i < 3;i++)
 				{
-					eb[i] = gyro_bias[i];
+					//eb[i] = gyro_bias[i];
 				}
 				GINS_log("gyo statis bias:%f,%f,%f\r\n", eb[0]*R2D, eb[1] * R2D, eb[2] * R2D);
 				bias_init = true;
@@ -174,15 +180,15 @@ int GINS_Process::ZUpdate(Process_Data ilcd)
 	Mat_mul(ins.Cmb, ins.wib, 3, 3, 1, wib_car);//车辆角速率分量
 	speed_car = sqrt(SQ(ins.vm_car[0]) + SQ(ins.vm_car[1]));//车辆速度
 	double dGyroZ = ins.wib[2] * R2D;
-	if (dGyroZ > 2)
+	if (dGyroZ > 5)
 		bTurn = 1;//左转
-	else if (dGyroZ < -2)
+	else if (dGyroZ < -5)
 		bTurn = -1;//右转
 	else
 		bTurn = 0;//直行
 	if (bTurn == 1 || bTurn == -1)
 	{
-		if (ilcd.imu_raw_cnt % (100) == 0)
+		if (ilcd.imu_raw_cnt % (600) == 0)
 		{
 			GINS_log("%f car_turn:%d\n", ilcd.imutimetarge, bTurn);
 		}
@@ -197,7 +203,7 @@ int GINS_Process::ZUpdate(Process_Data ilcd)
 
 		Mat_min(ppsinspos, ilcd.pos, dpos, 3, 1);//位置差
 		Mat_min(ppsinsvn, ilcd.vn, dvn, 3, 1);//速度差
-		//printf("err=%f,%f,%f,%f,%f,%f\n", dpos[0], dpos[1], dpos[2], dvn[0], dvn[1], dvn[2]);
+
 
 		diffpos(ilcd.pos, ppsinspos, enu);//enu下位置差
 		difpos_b(ilcd.pos, ppsinspos, ppsins.att_car, dposb_sync);//载体系下位置差
@@ -297,11 +303,11 @@ int GINS_Process::ZUpdate(Process_Data ilcd)
 			//if(!bDualAntAvail || bGnssLost)/*单天线或不搜星，姿态航向约束*/
 			{
 				Mat_min(ins.att_car, inspre_forStatic.att_car, dAtt, 3, 1);
-				iUpdateZ_flag |=  UPDATE_Z_ATT_Z;//无人船上航向约束不可用
+				//iUpdateZ_flag |=  UPDATE_Z_ATT_Z;//无人船上航向约束不可用
 			}
 			double zk[NUMV] = { -dAtt[0],-dAtt[1],-dAtt[2],ins.vn[0],ins.vn[1],ins.vn[2],dPos[0],dPos[1],dPos[2],dvm[0],dvm[1],dvm[2],dYawRate };
-			//iUpdateZ_flag = UPDATE_Z_ATT_Z| UPDATE_Z_VER_XYZ|UPDATE_Z_POS_XYZ;
-			iUpdateZ_flag |= UPDATE_Z_VER_XYZ;
+			iUpdateZ_flag = UPDATE_Z_ATT_Z| UPDATE_Z_VER_XYZ|UPDATE_Z_POS_XYZ;
+			//iUpdateZ_flag |= UPDATE_Z_VER_XYZ;
 			if (iUpdateZ_flag)
 			{
 				kf.MUpadte(ins, zk, iUpdateZ_flag);
@@ -323,7 +329,6 @@ int GINS_Process::ZUpdate(Process_Data ilcd)
 			double dVx = fabs(ins.wib[2])*2.7;
 			if (dVx < 0.1)	dVx = 0.1;
 			kf.Rk[9] = SQR(dVx);
-			//iUpdateZ_flag &= (~UPDATE_Z_CONS_VER_X);/*不使用约束效果较差*/
 		}
 		if (iUpdateZ_flag)
 		{
@@ -340,7 +345,7 @@ int GINS_Process::ZUpdate(Process_Data ilcd)
 	
 /****************************************GNSS跳点处理**********************************************/
 	double zk[NUMV] = { dAtt[0],dAtt[1],dAtt[2],dvn[0],dvn[1],dvn[2],dpos[0],dpos[1],dpos[2],dvm[0],dvm[1],dvm[2],dYawRate };
-#if 1  //GNSS跳点-不更新或速度更新
+#if 0  //GNSS跳点-不更新或速度更新
 	if ((fabs(enu[0])>2.0 || fabs(enu[1])>2.0 || fabs(enu[2])>2.0) && c<1000)
 	{
 		GINS_log("   跳点：enu>0.5\n");
@@ -379,7 +384,7 @@ int GINS_Process::ZUpdate(Process_Data ilcd)
 
 
 /****************************************GNSS长时间中断处理**********************************************/
-#if 1   //长时间中断20s或定位差连续大于阈值--,GPS恢复阶段 - 速度和位置设为GNSS的结果
+#if 0   //长时间中断20s或定位差连续大于阈值--,GPS恢复阶段 - 速度和位置设为GNSS的结果
 	//需要的话就开个窗
 	if (c>999 || num_GPSskip>24)
 	{
@@ -413,7 +418,7 @@ int GINS_Process::ZUpdate(Process_Data ilcd)
 
 
 /****************************************GNSS速度不可用，降权处理**********************************************/
-#if 1
+#if 0
 	kf.resetRk(ilcd);
 	c = 0; //INS更新计数清零
 		   //对异常速度进行探测

@@ -1,6 +1,8 @@
 #include "GINS_ekf.h"
 void GINS_KF::kfinit()
 {
+	ROW = 21;
+	COL = 13;
 	memset(xk, 0, sizeof(double)*ROW * 1);
 	memset(xkpre, 0, sizeof(double)*ROW * 1);
 	memset(dpos, 0, sizeof(double) * 3 * 1);
@@ -162,16 +164,17 @@ void GINS_KF::TUpdate(double dt, int option)
 		double* temp1 = (double*)__ml_zero(sizeof(double)*ROW*ROW);
 		double* temp2 = (double*)__ml_zero(sizeof(double)*ROW*ROW);
 
-		/*dsf90:xk  = Phi X xk*/
-		Mat_mul(Phi, xk, ROW, ROW, 1, temp);
-		Mat_equal(temp, ROW, 1, xk);
-		Mat_mul(Phi, Pxk, ROW, ROW, ROW, temp1);
-		Mat_tran(Phi, ROW, ROW, temp2);
-		Mat_mul(temp1, temp2, ROW, ROW, ROW, Pxk);
+		/*状态量更新*/
+		Mat_mul(Phi, xk, ROW, ROW, 1, temp);//temp=Phi*xk
+		Mat_equal(temp, ROW, 1, xk);//xk=temp
+		/*协方差更新*/
+		Mat_mul(Phi, Pxk, ROW, ROW, ROW, temp1);//temp1=Phi*Pxk
+		Mat_tran(Phi, ROW, ROW, temp2);//temp2=tran(Phi)
+		Mat_mul(temp1, temp2, ROW, ROW, ROW, Pxk);//Pxk=Phi*Pxk*tran(Phi)
 #if 1
-		/*dsf90:Pxk = Phi X Pxk X Mt(Phi) + Qk*dt*/
+		/*协方差+状态噪声矩阵*/
 		Mat_mulb(Qk, ROW, ROW, dt, temp1);
-		Mat_add(Pxk, temp1, Pxk, ROW, ROW);
+		Mat_add(Pxk, temp1, Pxk, ROW, ROW);//Pxk = Phi X Pxk X Mt(Phi) + Qk*dt
 #else   
 		/*dsf90:修正：Pxk = Phi X Pxk X Mt(Phi) + Qk*dt^2*/
 		Mat_mul(Qk, ROW, ROW, dt*dt, temp1);
@@ -196,10 +199,10 @@ void GINS_KF::TUpdate(double dt, int option)
 		Mat_mul(temp1, temp2, ROW, ROW, ROW, Pxk);
 #if 0
 		/*dsf90:Pxk = Phi X Pxk X Mt(Phi) + Gk X (Qk*dt) X Gk*/
-		Mmuln(Qk, ROW, ROW, dt, temp1);
-		Mmulnm(Gk, temp1, ROW, ROW, ROW, temp2);
-		Mtn(Gk, ROW, ROW, temp1);
-		Mmulnm(temp2, Gk, ROW, ROW, ROW, temp3);
+		Mat_mul(Qk, ROW, ROW, dt, temp1);
+		Mat_mul(Gk, temp1, ROW, ROW, ROW, temp2);
+		Mat_tran(Gk, ROW, ROW, temp1);
+		Mat_mul(temp2, Gk, ROW, ROW, ROW, temp3);
 #else
 		/*dsf90:修正：Pxk = Phi X Pxk X Mt(Phi) + dt^2 * Gk X Qk X Mt(Gk)*/
 		Mat_mulb(Qk, ROW, ROW, (dt*dt), temp1);
@@ -342,6 +345,7 @@ void GINS_KF::Feedback(GINS_INS& ins, double scater, int option)
 	Mat_min(ins.pos, dpos, ins.pos, 3, 1);//
 	Mat_add(ins.eb, deb, ins.eb, 3, 1); // 陀螺零偏
 	Mat_add(ins.db, ddb, ins.db, 3, 1);
+	//printf("feedback=%f,%f,%f,%f,%f,%f\n", dpos[0], dpos[1], dpos[2], dvn[0], dvn[1], dvn[2]);
 	if (ROW >= 18 && (xflag&(7 << 15)))
 	{
 #if 1
@@ -364,7 +368,7 @@ void GINS_KF::Feedback(GINS_INS& ins, double scater, int option)
 	}
 
 	if (ROW >= 21 && (xflag&(7 << 18)))
-		Mat_add(ins.lever, dlever, ins.lever,3, 1);
+	//	Mat_add(ins.lever, dlever, ins.lever,3, 1);
 	/*
 	if(ROW>=23 && (xflag&(1<<22)))
 	ins.tDelay+=dtelay;
@@ -379,11 +383,48 @@ void GINS_KF::Feedback(GINS_INS& ins, double scater, int option)
 	free(xk_f);
 }
 
+void GINS_KF::downgrade_car(Process_Data ilcd, double denu[3], double posrk[3])
+{
+	double ver_lat = ilcd.GPV_RK[3 * 6 + 3] * RE*RE;  //m2
+	double ver_lon = ilcd.GPV_RK[4 * 6 + 4] * RE*RE;  //m2
+	double ver_hig = ilcd.GPV_RK[5 * 6 + 5];                //m2
+	double de = pow(denu[0], 2);
+	double dn = pow(denu[1], 2);
+	double du = pow(denu[2], 2);
+	if (dn>ver_lat)
+	{
+		posrk[0] = dn / (RE*RE);
+	}
+	else
+	{
+		posrk[0] = ilcd.GPV_RK[3 * 6 + 3];
+	}
 
+	if (de>ver_lon)
+	{
+		posrk[1] = de / (RE*RE);
+	}
+	else
+	{
+		posrk[1] = ilcd.GPV_RK[4 * 6 + 4];
+	}
+
+	if (du>ver_hig)
+	{
+		posrk[2] = du;
+	}
+	else
+	{
+		posrk[2] = ilcd.GPV_RK[5 * 6 + 5];
+	}
+}
 void GINS_KF::upPhi(GINS_INS& ins, double dt)
 {
 	//Mat_equal(Phi, ROW, ROW, 0);
-
+	for (int i = 0;i < ROW*ROW;i++)
+	{
+		Phi[i] = 0;
+	}
 	double sl, cl, tl, secl, secl2, f_RMh, f_RNh, f_RMh2, f_RNh2, f_clRNh;
 	sl = sin(ins.pos[0]); cl = cos(ins.pos[0]);
 	tl = sl / cl; secl = 1 / cl;
@@ -595,12 +636,11 @@ void GINS_KF::upHk(GINS_INS& ins, double *hk)
 	askew(vb, askvb);
 	Mat_mul(ins.Cmb, askvb, 3, 3, 3, cmbAskvb);
 
-	/*dsf90:载体约束/里程计轮速*/
 	for (int i = 0; i<3; i++)
 	{
-		{	hk[9 * ROW + i] = -cmnAskvn[0 * 3 + i]; hk[9 * ROW + i + 3] = cmn[0 * 3 + i]; hk[9 * ROW + 15 + i] = cmbAskvb[0 * 3 + i]; }
-		{	hk[10 * ROW + i] = -cmnAskvn[1 * 3 + i]; hk[10 * ROW + i + 3] = cmn[1 * 3 + i]; hk[10 * ROW + 15 + i] = cmbAskvb[1 * 3 + i]; }
-		{	hk[11 * ROW + i] = -cmnAskvn[2 * 3 + i]; hk[11 * ROW + i + 3] = cmn[2 * 3 + i]; hk[11 * ROW + 15 + i] = cmbAskvb[2 * 3 + i]; }
+		{	hk[9 * ROW + i] = -cmnAskvn[0 * 3 + i]; hk[9 * ROW + i + 3] = cmn[0 * 3 + i]; hk[9 * ROW + 15 + i] = cmbAskvb[0 * 3 + i];}
+		{	hk[10 * ROW + i] = -cmnAskvn[1 * 3 + i]; hk[10 * ROW + i + 3] = cmn[1 * 3 + i]; hk[10 * ROW + 15 + i] = cmbAskvb[1 * 3 + i];}
+		{	hk[11 * ROW + i] = -cmnAskvn[2 * 3 + i]; hk[11 * ROW + i + 3] = cmn[2 * 3 + i]; hk[11 * ROW + 15 + i] = cmbAskvb[2 * 3 + i];}
 	}
 
 	/*dsf90:载体速度观测（里程计航向）*/
@@ -662,4 +702,26 @@ GINS_KF& GINS_KF::operator=(const GINS_KF& kftemp)
 	}
 	bGnssUpdata = kftemp.bGnssUpdata;
 	return(*this);
+}
+
+
+void GINS_KF::resetRk(Process_Data ilcd)
+{
+	/*att*/
+	Rk[0] = ilcd.GA_RK[0];
+	Rk[1] = ilcd.GA_RK[1];
+	Rk[2] = ilcd.GA_RK[2];
+	//Rk[2]=SQR(1*glv.deg);
+	/*vel*/
+	Rk[3] = ilcd.GPV_RK[0 * 6 + 0];
+	Rk[4] = ilcd.GPV_RK[1 * 6 + 1];
+	Rk[5] = ilcd.GPV_RK[2 * 6 + 2];
+	/*pos*/
+	Rk[6] = ilcd.GPV_RK[3 * 6 + 3];
+	Rk[7] = ilcd.GPV_RK[4 * 6 + 4];
+	Rk[8] = ilcd.GPV_RK[5 * 6 + 5];
+	/*vel_body*/
+	Rk[9] = SQR(0.1);
+	Rk[10] = SQR(0.1);
+	Rk[11] = SQR(0.1);
 }
